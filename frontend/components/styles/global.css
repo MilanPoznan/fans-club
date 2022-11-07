@@ -1,0 +1,48 @@
+:root {
+  --light: 'Roboto', sans-serif;
+  --regular: 'Roboto', sans-serif;
+  --primary: '#F8F5F0';
+  --primaryShade: '#F0EDE8';
+  --accent_primary: '#305C63';
+  --accent_secondary: '#78A9DE';
+  --lightBlue: '#B9CCD5';
+  --green: '#97C961';
+  --black: '#191B1A';
+  --black60: '#191B1A99';
+  --blackOpacity40: '#191B1A66';
+  --darkGray: '#58595B';
+  --gray: '#D6D4D1';
+  --highlight: '#FBFAF7';
+  --white: '#FFFFFF';
+  --white65: 'rgba(255,255,255, 0.65)';
+  --yellow: '#FFFF83';
+  --borderColor: '#2e2c2c';
+  --gold: '#c4a44c';
+}
+
+@font-face {
+  font-family: 'Material Icons';
+  font-style: normal;
+  font-weight: 400;
+  src: url('https://fonts.gstatic.com/s/materialicons/v139/flUhRq6tzZclQEJ-Vdg-IuiaDsNcIhQ8tQ.woff2') format('woff2');
+}
+
+.material-icons {
+  font-family: 'Material Icons';
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-feature-settings: 'liga';
+  -webkit-font-smoothing: antialiased;
+}
+
+main {
+  padding-top: 100px;
+}
