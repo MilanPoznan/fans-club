@@ -20,23 +20,11 @@ class Artist { //
   users: UserInterface[] = [] //vec
   contractDonations: bigint
   accountForProfit: 'maddev.testnet'
+  all_artists = new LookupMap('map-art')
 
   @view({})
   get_artist({ account_id }: { account_id: string }) {
 
-    // let currArtist = {};
-
-    // const artistsVal = Object.values(this.allArtists)
-
-    // artistsVal.forEach(item => {
-    //   near.log('item', item)
-    //   if (item.account_id == account_id) {
-
-    //     currArtist = { ...item }
-    //   }
-    // })
-    // console.log(currArtist)
-    near.log('Ono kako treba', this.allArtists[account_id])
     return this.allArtists[account_id]
   }
 
@@ -94,9 +82,10 @@ class Artist { //
 
     let account_id = near.predecessorAccountId()
 
-    const doesAccExist = this.allArtists[account_id]
+    const isArtistExist = this.all_artists.containsKey(account_id)
+    // const doesAccExist = this.allArtists[account_id]
 
-    if (!doesAccExist) {
+    if (!isArtistExist) {
 
 
       const newArtist = new ArtistModel({
@@ -111,7 +100,8 @@ class Artist { //
       })
 
 
-      this.allArtists[account_id] = newArtist
+      this.all_artists.set(account_id, newArtist)
+      // this.allArtists[account_id] = newArtist
 
     } else {
       near.log('This account already exist ')
@@ -173,6 +163,17 @@ class Artist { //
     }
 
     updateArtistAfterDonation(artistToDonate, toTransfer, dontaionUsdt)
+
+  }
+
+  @call({ payableFunction: true })
+  transfer_money() {
+
+    // Get who is calling the method and how much $NEAR they attached
+    let sender = near.predecessorAccountId();
+    let donationAmount: bigint = near.attachedDeposit() as bigint;
+
+    let toTransfer = donationAmount;
 
   }
 }
