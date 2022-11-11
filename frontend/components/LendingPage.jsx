@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { CategoryFilter, CategoryWrapper, SingleArtistPreview, ArtistInfo } from './styles/LendingPage.styles'
 import { ContentWrapper, Heading1, Heading2, Heading4, UppercaseLabel } from './styles/GlobalStyles.styled'
 import SvgRender from './SvgRender'
+import { Link } from "react-router-dom";
 
 export default function LendingPage({ artist }) {
   const categories = ['art', 'music', 'podcast', 'gaming', 'modeling']
@@ -11,6 +12,7 @@ export default function LendingPage({ artist }) {
   async function filterArtist(category) {
     const artistFromCat = await artist.getArtistFromCategory(category)
     setArtistsFromCategory(artistFromCat)
+    console.log(artistsFromCategory)
   }
 
   useEffect(() => {
@@ -28,7 +30,7 @@ export default function LendingPage({ artist }) {
         <SingleArtistPreview>
           <SvgRender iconType='black-logo' />
           <ArtistInfo>
-            <Heading4>{item?.title}</Heading4>
+            <Link to={`/single-artist/${item.account_id}`} ><Heading4>{item?.title}</Heading4></Link>
             <UppercaseLabel>{item?.about}</UppercaseLabel>
           </ArtistInfo>
         </SingleArtistPreview>)
