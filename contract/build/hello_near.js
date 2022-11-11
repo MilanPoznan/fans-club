@@ -537,6 +537,19 @@ let Artist = (_dec = NearBindgen({}), _dec2 = view({}), _dec3 = view({}), _dec4 
   get_artist({
     account_id
   }) {
+    // let currArtist = {};
+
+    // const artistsVal = Object.values(this.allArtists)
+
+    // artistsVal.forEach(item => {
+    //   near.log('item', item)
+    //   if (item.account_id == account_id) {
+
+    //     currArtist = { ...item }
+    //   }
+    // })
+    // console.log(currArtist)
+    log('Ono kako treba', this.allArtists[account_id]);
     return this.allArtists[account_id];
   }
   get_all_artist() {

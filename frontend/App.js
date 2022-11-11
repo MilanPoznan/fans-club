@@ -23,8 +23,6 @@ import './components/styles/normalize.css'
 
 export default function App({ isSignedIn, artist, wallet }) {
 
-
-  console.log(artist)
   /// If user not signed-in with wallet - show prompt
   if (!isSignedIn) {
     // Sign-in flow will reload the page later
@@ -32,7 +30,6 @@ export default function App({ isSignedIn, artist, wallet }) {
     // signing in  onClick={() => wallet.signIn()
   }
 
-  console.log(theme)
   return (
     <>
       <ThemeProvider theme={theme}>
@@ -46,7 +43,7 @@ export default function App({ isSignedIn, artist, wallet }) {
             <Route path={`/register-user`} element={<RegisterUserForm artist={artist} />} exact />
             <Route path={`/register-user`} element={<LendingPage />} exact />
             <Route path={"/single-artist/:id"} element={<SingleArtistTemplate artistContract={artist} />} />
-            <Route path='/' element={<LendingPage artist={artist} />} />
+            <Route path='/' element={<LendingPage artist={artist} />} exact />
           </Routes>
 
         </main>

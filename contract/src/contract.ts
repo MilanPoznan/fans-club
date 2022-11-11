@@ -22,7 +22,21 @@ class Artist { //
   accountForProfit: 'maddev.testnet'
 
   @view({})
-  get_artist({ account_id }) {
+  get_artist({ account_id }: { account_id: string }) {
+
+    // let currArtist = {};
+
+    // const artistsVal = Object.values(this.allArtists)
+
+    // artistsVal.forEach(item => {
+    //   near.log('item', item)
+    //   if (item.account_id == account_id) {
+
+    //     currArtist = { ...item }
+    //   }
+    // })
+    // console.log(currArtist)
+    near.log('Ono kako treba', this.allArtists[account_id])
     return this.allArtists[account_id]
   }
 
