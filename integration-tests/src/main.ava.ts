@@ -157,7 +157,7 @@ test('Test category retyrb', async (t) => {
   const secondArtist = {
     title: 'Sec Amadeus',
     about: 'Sec je car',
-    categories: ['music', 'art'],
+    categories: ['music', 'art', 'movie'],
     socials: null,
     subscription_types: [1, 5, 10],
     onetime_donations: true,
@@ -165,14 +165,15 @@ test('Test category retyrb', async (t) => {
   }
 
   const ramboArtist: any = await rambo.call(contract, 'create_artist', { ...firstArtist })
+  const ramboArtist2: any = await rambo.call(contract, 'create_artist', { ...firstArtist })
   const newArt: any = await user2.call(contract, 'create_artist', { ...secondArtist })
 
 
-  // const getArtFromCat = await rambo.call(contract, 'get_artist_from_category', { category: 'art' })
-  // const getArtFromCat2 = await rambo.call(contract, 'get_artist_from_category', { category: 'podcast' })
-  const getArt = await rambo.call(contract, 'get_artist', { account_id: 'rambo.test.near' })
+  const getArtFromCat = await rambo.call(contract, 'get_artist_from_category', { category: 'movie' })
+  const getArtFromCat2 = await rambo.call(contract, 'get_artist_from_category', { category: 'podcasts' })
 
-  console.log('artist: ', getArt)
+  console.log('artist: ', getArtFromCat)
+  console.log('artist: ', getArtFromCat2)
 
 
 })

@@ -1,4 +1,4 @@
-import { NearBindgen, near, call, view, LookupMap } from 'near-sdk-js';
+import { NearBindgen, near, call, view, LookupMap, UnorderedMap } from 'near-sdk-js';
 import {
   ArtistDynamicProps,
   UserInterface,
@@ -20,32 +20,40 @@ class Artist { //
   users: UserInterface[] = [] //vec
   contractDonations: bigint
   accountForProfit: 'maddev.testnet'
-  all_artists = new LookupMap('map-art')
+  all_artists = new UnorderedMap('map-art')
+  all_users = new LookupMap('map-usr')
 
   @view({})
   get_artist({ account_id }: { account_id: string }) {
 
-    return this.allArtists[account_id]
+    // return this.allArtists[account_id]
+    return this.all_artists.get(account_id)
   }
 
   @view({})
   get_all_artist() {
-    return this.allArtists
+    // return this.allArtists
+    return this.all_artists
   }
 
   @view({})
   get_artist_from_category({ category }: { category: string }) {
-    const artistsVal = Object.values(this.allArtists)
-    near.log(artistsVal)
-    near.log('category', category)
 
     const artistFromCategory = []
 
-    artistsVal.forEach(item => {
-      if (item.categories.includes(category)) {
+    // const artistsVal = Object.values(this.allArtists)
+    this.all_artists.toArray().forEach((item: [string, ArtistModel]) => {
+      if (item[1].categories.includes(category)) {
         artistFromCategory.push(item)
       }
     })
+
+
+    // artistsVal.forEach(item => {
+    //   if (item.categories.includes(category)) {
+    //     artistFromCategory.push(item)
+    //   }
+    // })
 
     return artistFromCategory
   }
@@ -82,11 +90,10 @@ class Artist { //
 
     let account_id = near.predecessorAccountId()
 
-    const isArtistExist = this.all_artists.containsKey(account_id)
-    // const doesAccExist = this.allArtists[account_id]
+    const isArtistExist = this.all_artists.get(account_id)
+    near.log('does aritst exist: ', isArtistExist)
 
     if (!isArtistExist) {
-
 
       const newArtist = new ArtistModel({
         account_id,
@@ -101,7 +108,6 @@ class Artist { //
 
 
       this.all_artists.set(account_id, newArtist)
-      // this.allArtists[account_id] = newArtist
 
     } else {
       near.log('This account already exist ')
@@ -166,14 +172,4 @@ class Artist { //
 
   }
 
-  @call({ payableFunction: true })
-  transfer_money() {
-
-    // Get who is calling the method and how much $NEAR they attached
-    let sender = near.predecessorAccountId();
-    let donationAmount: bigint = near.attachedDeposit() as bigint;
-
-    let toTransfer = donationAmount;
-
-  }
 }
