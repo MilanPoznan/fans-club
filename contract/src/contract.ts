@@ -1,4 +1,4 @@
-import { NearBindgen, near, call, view, LookupMap, UnorderedMap } from 'near-sdk-js';
+import { NearBindgen, near, call, view, LookupMap, UnorderedMap, NearPromise } from 'near-sdk-js';
 import {
   ArtistDynamicProps,
   UserInterface,
@@ -16,8 +16,8 @@ import BigNumber from 'bignumber.js'
 //Moram logiku za storage cost da odradim kada se registruju User & Artst
 @NearBindgen({})
 class Artist { //
-  allArtists: SingleAritstType = {} //lookup map
-  users: UserInterface[] = [] //vec
+  // allArtists: SingleAritstType = {} //lookup map
+  // users: UserInterface[] = [] //vec
   contractDonations: bigint
   accountForProfit: 'maddev.testnet'
   all_artists = new UnorderedMap('map-art')
@@ -25,14 +25,11 @@ class Artist { //
 
   @view({})
   get_artist({ account_id }: { account_id: string }) {
-
-    // return this.allArtists[account_id]
     return this.all_artists.get(account_id)
   }
 
   @view({})
   get_all_artist() {
-    // return this.allArtists
     return this.all_artists
   }
 
@@ -41,31 +38,24 @@ class Artist { //
 
     const artistFromCategory = []
 
-    // const artistsVal = Object.values(this.allArtists)
     this.all_artists.toArray().forEach((item: [string, ArtistModel]) => {
       if (item[1].categories.includes(category)) {
         artistFromCategory.push(item)
       }
     })
 
-
-    // artistsVal.forEach(item => {
-    //   if (item.categories.includes(category)) {
-    //     artistFromCategory.push(item)
-    //   }
-    // })
-
     return artistFromCategory
   }
 
   @view({})
   get_all_users() {
-    return this.users
+    return this.all_users
+
   }
 
   @view({})
   get_user({ account_id }) {
-    return this.users.filter(user => user.account_id === account_id)
+    return this.all_users.get(account_id)
   }
 
   @call({})
@@ -73,11 +63,13 @@ class Artist { //
 
     let userAccountId = near.predecessorAccountId()
 
-    const checkDoesUserExist = this.users.filter(item => item.account_id === userAccountId)
+    // const checkDoesUserExist = this.users.filter(item => item.account_id === userAccountId)
+    const checkDoesUserExist = this.all_users.get(userAccountId)
 
-    if (checkDoesUserExist.length === 0) {
+    if (!checkDoesUserExist) {
       let newUser = initUser(userAccountId, status, nickname)
-      this.users.push(newUser)
+      this.all_users.set(userAccountId, newUser)
+      // this.users.push(newUser)
       return newUser
     } else {
       near.log('User already exist')
@@ -120,13 +112,16 @@ class Artist { //
 
     //User 
     const donor = near.predecessorAccountId();
-    const filterCurrentUser = this.users.filter(user => user.account_id === donor)
-    const currentUser = filterCurrentUser[0]
+    // const filterCurrentUser = this.users.filter(user => user.account_id === donor)
+    const currentUser = this.all_users.get(donor) as UserInterface
+
+    near.log('currentUser', currentUser)
+    // const currentUser = filterCurrentUser[0]
     //Attach deposit
     const donationAmount: bigint = near.attachedDeposit() as bigint;
 
     //Artist
-    const artistToDonate = this.allArtists[artist_id]
+    const artistToDonate = this.all_artists.get(artist_id) as ArtistModel;
 
     let toTransfer = donationAmount;
     near.log(1, toTransfer)
@@ -144,19 +139,24 @@ class Artist { //
     near.log(transferToArtist)
 
     //Send to artist
-    const artistPromise = near.promiseBatchCreate(artist_id)
-    const myPromise = near.promiseBatchCreate('maddev.testnet')
+    // const artistPromise = near.promiseBatchCreate(artist_id)
+    // const myPromise = near.promiseBatchCreate('maddev.testnet')
 
-    const tx = near.promiseBatchActionTransfer(artistPromise, toTransfer)
-    const myTx = near.promiseBatchActionTransfer(myMoney, myPromise)
+    // const tx = near.promiseBatchActionTransfer(artistPromise, toTransfer)
+    // const myTx = near.promiseBatchActionTransfer(myMoney, myPromise)
 
-    const artistStatus = near.promiseReturn(artistPromise);
+    // const artistStatus = near.promiseReturn(artistPromise);
     // const myPromise = near.promiseBatchCreate(this.accountForProfit)
     // const myTransaction = near.promiseBatchActionTransfer(myPromise, myMoney)
 
-    near.log('transaction ==== ', tx)
-    near.log('myTx', myTx)
+    // near.log('transaction ==== ', tx)
+    // near.log('myTx', myTx)
     //Demo for now 
+
+    const promise = NearPromise.new(artistToDonate.account_id);
+    promise.transfer(toTransfer);
+    promise.onReturn();
+
     const donationTransaction = createDonationTransaction(artist_id, donationAmount, true, '20-11-2022')
 
     near.log('Curr user Before donations', currentUser);

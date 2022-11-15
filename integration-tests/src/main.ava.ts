@@ -116,19 +116,21 @@ test.afterEach.always(async (t) => {
 // // })
 
 
-// test('Set new user with ID', async (t) => {
+test('Set new user with ID', async (t) => {
 
-//   const { contract, user1, user2 } = t.context.accounts
+  const { contract, user1, user2 } = t.context.accounts
 
-//   await user1.call(contract, 'create_user_profile', { userStatus: 'bronze' })
-//   await user2.call(contract, 'create_user_profile', { userStatus: 'bronze' })
+  await user1.call(contract, 'create_user_profile', { userStatus: 'bronze' })
+  await user2.call(contract, 'create_user_profile', { userStatus: 'bronze' })
 
-//   const getAllUser: [] = await contract.view('get_all_users')
+  const getAllUser: [] = await contract.view('get_all_users')
+  const singleUser: [] = await contract.view('get_user', { account_id: user1.accountId })
 
-//   console.log('All users', getAllUser)
-//   t.is(2, getAllUser.length)
+  console.log('All users', getAllUser)
+  console.log('Single user', singleUser)
+  t.is(2, getAllUser.length)
 
-// })
+})
 
 
 // test('Reject double user registration', async (t) => {
@@ -140,43 +142,43 @@ test.afterEach.always(async (t) => {
 //   t.is(result, 'User already exist')
 // })
 
-test('Test category retyrb', async (t) => {
-  const { contract, user1, user2, rambo } = t.context.accounts
+// test('Test category retyrb', async (t) => {
+//   const { contract, user1, user2, rambo } = t.context.accounts
 
-  const firstArtist = {
-    title: 'Rambo Amadeus',
-    about: 'Rambo je car',
-    categories: ['music', 'art'],
-    socials: null,
-    subscription_types: [1, 5, 10],
-    onetime_donations: true,
-    image_url: null,
-  }
-
-
-  const secondArtist = {
-    title: 'Sec Amadeus',
-    about: 'Sec je car',
-    categories: ['music', 'art', 'movie'],
-    socials: null,
-    subscription_types: [1, 5, 10],
-    onetime_donations: true,
-    image_url: null,
-  }
-
-  const ramboArtist: any = await rambo.call(contract, 'create_artist', { ...firstArtist })
-  const ramboArtist2: any = await rambo.call(contract, 'create_artist', { ...firstArtist })
-  const newArt: any = await user2.call(contract, 'create_artist', { ...secondArtist })
+//   const firstArtist = {
+//     title: 'Rambo Amadeus',
+//     about: 'Rambo je car',
+//     categories: ['music', 'art'],
+//     socials: null,
+//     subscription_types: [1, 5, 10],
+//     onetime_donations: true,
+//     image_url: null,
+//   }
 
 
-  const getArtFromCat = await rambo.call(contract, 'get_artist_from_category', { category: 'movie' })
-  const getArtFromCat2 = await rambo.call(contract, 'get_artist_from_category', { category: 'podcasts' })
+//   const secondArtist = {
+//     title: 'Sec Amadeus',
+//     about: 'Sec je car',
+//     categories: ['music', 'art', 'movie'],
+//     socials: null,
+//     subscription_types: [1, 5, 10],
+//     onetime_donations: true,
+//     image_url: null,
+//   }
 
-  console.log('artist: ', getArtFromCat)
-  console.log('artist: ', getArtFromCat2)
+//   const ramboArtist: any = await rambo.call(contract, 'create_artist', { ...firstArtist })
+//   const ramboArtist2: any = await rambo.call(contract, 'create_artist', { ...firstArtist })
+//   const newArt: any = await user2.call(contract, 'create_artist', { ...secondArtist })
 
 
-})
+//   const getArtFromCat = await rambo.call(contract, 'get_artist_from_category', { category: 'movie' })
+//   const getArtFromCat2 = await rambo.call(contract, 'get_artist_from_category', { category: 'podcasts' })
+
+//   console.log('artist: ', getArtFromCat)
+//   console.log('artist: ', getArtFromCat2)
+
+
+// })
 
 
 

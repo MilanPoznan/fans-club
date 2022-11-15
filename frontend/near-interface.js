@@ -33,6 +33,10 @@ export class Artist {
     return await this.wallet.viewMethod({ contractId: this.contractId, method: 'get_all_artist' });
   }
 
+  async donateToArtist(artistId, donationInUsd) {
+    return await this.wallet.callMethod({ contractId: this.contractId, method: 'donate_to_artist', args: { artist_id: artistId, dontaionUsdt: donationInUsd } })
+  }
+
   async setArtist(title, about, categories, socials, subscription_types, onetime_donations, image_url) {
 
     console.log(this.contractId)
