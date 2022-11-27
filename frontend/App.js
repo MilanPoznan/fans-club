@@ -38,12 +38,12 @@ export default function App({ isSignedIn, artist, wallet }) {
         <SignOutButton accountId={wallet.accountId} onClick={() => wallet.signOut()} >Signout</SignOutButton>
         <main>
           <Routes>
-            <Route path={`/register-artist`} element={<RegisterArtistForm artist={artist} />} exact />
-            <Route path={`/artist-list`} element={<ArtistList artist={artist} />} exact />
-            <Route path={`/register-user`} element={<RegisterUserForm artist={artist} />} exact />
+            <Route path={`/register-artist`} element={<RegisterArtistForm contract={artist} />} exact />
+            <Route path={`/artist-list`} element={<ArtistList contract={artist} />} exact />
+            <Route path={`/register-user`} element={<RegisterUserForm contract={artist} />} exact />
             <Route path={`/register-user`} element={<LendingPage />} exact />
             <Route path={"/single-artist/:id"} element={<SingleArtistTemplate artistContract={artist} />} />
-            <Route path='/' element={<LendingPage artist={artist} />} exact />
+            <Route path='/' element={<LendingPage contract={artist} />} exact />
           </Routes>
 
         </main>

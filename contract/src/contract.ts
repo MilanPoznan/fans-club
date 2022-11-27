@@ -18,10 +18,10 @@ import BigNumber from 'bignumber.js'
 class Artist { //
   // allArtists: SingleAritstType = {} //lookup map
   // users: UserInterface[] = [] //vec
-  contractDonations: bigint
-  accountForProfit: 'maddev.testnet'
-  all_artists = new UnorderedMap('map-art')
-  all_users = new LookupMap('map-usr')
+  contractDonations: bigint = BigInt(0)
+  accountForProfit: string = 'maddev.testnet'
+  all_artists = new UnorderedMap<ArtistModel>('map-art')
+  all_users = new LookupMap<UserInterface>('map-usr')
 
   @view({})
   get_artist({ account_id }: { account_id: string }) {
@@ -30,7 +30,7 @@ class Artist { //
 
   @view({})
   get_all_artist() {
-    return this.all_artists
+    return this.all_artists.toArray()
   }
 
   @view({})
@@ -107,69 +107,61 @@ class Artist { //
 
   }
 
+
+  @
+
+
   @call({ payableFunction: true })
-  donate_to_artist({ artist_id, dontaionUsdt }: { artist_id: string, dontaionUsdt: number }) {
+  donate_to_artist({ artist_id }: { artist_id: string }) {
 
     //User 
     const donor = near.predecessorAccountId();
-    // const filterCurrentUser = this.users.filter(user => user.account_id === donor)
-    const currentUser = this.all_users.get(donor) as UserInterface
+    near.log('donor', donor)
+    // const currentUser = this.all_users.get(donor) as UserInterface
 
-    near.log('currentUser', currentUser)
-    // const currentUser = filterCurrentUser[0]
+    // near.log('currentUser', currentUser)
+
+
     //Attach deposit
     const donationAmount: bigint = near.attachedDeposit() as bigint;
 
     //Artist
-    const artistToDonate = this.all_artists.get(artist_id) as ArtistModel;
+    const artistToDonate = this.all_artists.get('artisttest.testnet') as ArtistModel;
 
-    let toTransfer = donationAmount;
-    near.log(1, toTransfer)
 
-    toTransfer -= STORAGE_COST
+    let toTransfer = donationAmount - STORAGE_COST;
 
-    //My 5% 
     let myMoney = toTransfer / BigInt(20)
-    //Artist money = 95%
-    let transferToArtist = toTransfer - myMoney
 
-    near.log('myMoney- ', myMoney)
-    near.log('transferToArtist- ', transferToArtist)
+    toTransfer = toTransfer - myMoney
 
-    near.log(transferToArtist)
+    near.log('myMoney ', myMoney)
+    near.log('toTransfer', toTransfer)
 
-    //Send to artist
-    // const artistPromise = near.promiseBatchCreate(artist_id)
-    // const myPromise = near.promiseBatchCreate('maddev.testnet')
 
-    // const tx = near.promiseBatchActionTransfer(artistPromise, toTransfer)
-    // const myTx = near.promiseBatchActionTransfer(myMoney, myPromise)
+    // const promise = NearPromise.new(artistToDonate.account_id);
+    // const promise = near.promiseBatchCreate(artistToDonate.account_id)
+    // const promise = NearPromise.new(artistToDonate.account_id);
+    // promise.transfer(donationAmount)
+    // promise.onReturn();
+    const promise = near.promiseBatchCreate(artist_id)
+    near.promiseBatchActionTransfer(promise, donationAmount)
 
-    // const artistStatus = near.promiseReturn(artistPromise);
-    // const myPromise = near.promiseBatchCreate(this.accountForProfit)
-    // const myTransaction = near.promiseBatchActionTransfer(myPromise, myMoney)
-
-    // near.log('transaction ==== ', tx)
-    // near.log('myTx', myTx)
-    //Demo for now 
-
-    const promise = NearPromise.new(artistToDonate.account_id);
-    promise.transfer(toTransfer);
-    promise.onReturn();
 
     const donationTransaction = createDonationTransaction(artist_id, donationAmount, true, '20-11-2022')
 
-    near.log('Curr user Before donations', currentUser);
+    near.log('Curr user Before donations', donor);
     near.log('Artist Before donations:', artistToDonate);
 
-    if (currentUser) {
-      updateUserAfterDonation(currentUser, donationTransaction, dontaionUsdt, toTransfer)
-    } else {
-      return `Please create account for ${donor} account`
-    }
+    // if (donor) {
+    //   updateUserAfterDonation(currentUser, donationTransaction, donationAmount, donationAmount)
+    // } else {
+    //   return `Please create account for ${donor} account`
+    // }
 
-    updateArtistAfterDonation(artistToDonate, toTransfer, dontaionUsdt)
+    // updateArtistAfterDonation(artistToDonate, donationAmount, donationAmount)
 
+    // return currentUser
   }
 
 }

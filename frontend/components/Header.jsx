@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Link } from "react-router-dom";
 import { SignOutButton } from '../ui-components'
-import { useCurrentWidth } from '../hooks/useResize'
+// import { useCurrentWidth } from '../hooks/useResize'
 import NavMenu from './NavMenu'
 import {
   Wrapper,
@@ -18,7 +18,7 @@ import {
 export default function Header({ wallet, isSignedIn }) {
 
   console.log(wallet)
-  const windowWidth = useCurrentWidth();
+  const windowWidth = 1220
 
   const [isMenuOpen, setIsMenuOpen] = useState(false)
 

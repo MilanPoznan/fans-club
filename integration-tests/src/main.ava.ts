@@ -81,54 +81,85 @@ test.afterEach.always(async (t) => {
 // });
 
 
-// // test('Get all artists after register two', async (t) => {
+// test('Get all artists after register two', async (t) => {
 
-// //   const { contract, rambo, prtibege } = t.context.accounts;
+//   const { contract, rambo, prtibege } = t.context.accounts;
 
-// //   const firstArtist = {
-// //     title: 'Rambo Amadeus',
-// //     about: 'Rambo je car',
-// //     categories: ['music', 'art'],
-// //     socials: null,
-// //     subscription_types: [1, 5, 10],
-// //     onetime_donations: true,
-// //     image_url: null,
-// //   }
+//   const firstArtist = {
+//     title: 'Rambo Amadeus',
+//     about: 'Rambo je car',
+//     categories: ['music', 'art'],
+//     socials: null,
+//     subscription_types: [1, 5, 10],
+//     onetime_donations: true,
+//     image_url: null,
+//   }
 
-// //   const secondArtist = {
-// //     title: 'Prti Bee GEe',
-// //     about: 'Cigani na Adi',
-// //     categories: ['music', 'art'],
-// //     socials: null,
-// //     subscription_types: [5, 10, 25, 100],
-// //     onetime_donations: true,
-// //     image_url: null,
-// //   }
+//   const secondArtist = {
+//     title: 'Prti Bee GEe',
+//     about: 'Cigani na Adi',
+//     categories: ['music', 'art'],
+//     socials: null,
+//     subscription_types: [5, 10, 25, 100],
+//     onetime_donations: true,
+//     image_url: null,
+//   }
 
-// //   await rambo.call(contract, 'create_artist', { ...firstArtist })
+//   await rambo.call(contract, 'create_artist', { ...firstArtist })
 
-// //   await prtibege.call(contract, 'create_artist', { ...secondArtist })
+//   await prtibege.call(contract, 'create_artist', { ...secondArtist })
 
-// //   const allArtists = await contract.view('get_all_artist')
+//   const allArtists = await contract.view('get_all_artist')
 
-// //   console.log('all artists', allArtists)
+//   console.log('all artists', allArtists)
 
-// // })
+// })
 
 
-test('Set new user with ID', async (t) => {
+// test('Set new user with ID', async (t) => {
 
-  const { contract, user1, user2 } = t.context.accounts
+//   const { contract, user1, user2 } = t.context.accounts
+
+//   await user1.call(contract, 'create_user_profile', { userStatus: 'bronze' })
+//   await user2.call(contract, 'create_user_profile', { userStatus: 'bronze' })
+
+//   const getAllUsers: [] = await contract.view('get_all_users')
+//   const singleUser: [] = await contract.view('get_user', { account_id: user1.accountId })
+
+//   console.log('All users', getAllUsers)
+//   console.log('Single user', singleUser)
+//   t.is(2, 2)
+
+// })
+
+test('donations', async (t) => {
+
+  const { contract, user1, user2, rambo } = t.context.accounts
 
   await user1.call(contract, 'create_user_profile', { userStatus: 'bronze' })
-  await user2.call(contract, 'create_user_profile', { userStatus: 'bronze' })
 
-  const getAllUser: [] = await contract.view('get_all_users')
-  const singleUser: [] = await contract.view('get_user', { account_id: user1.accountId })
+  const secondArtist = {
+    title: 'Prti Bee GEe',
+    about: 'Cigani na Adi',
+    categories: ['music', 'art'],
+    socials: null,
+    subscription_types: [5, 10, 25, 100],
+    onetime_donations: true,
+    image_url: null,
+  }
 
-  console.log('All users', getAllUser)
-  console.log('Single user', singleUser)
-  t.is(2, getAllUser.length)
+  await rambo.call(contract, 'create_artist', { ...secondArtist })
+
+  const allArtists = await contract.view('get_all_artist')
+  console.log(allArtists)
+
+  const dontaion = await user1.call(
+    contract, 'donate_to_artist',
+    { artist_id: rambo.accountId },
+    { attachedDeposit: NEAR.parse("1 N").toString() })
+
+
+  console.log(dontaion)
 
 })
 
@@ -171,11 +202,15 @@ test('Set new user with ID', async (t) => {
 //   const newArt: any = await user2.call(contract, 'create_artist', { ...secondArtist })
 
 
-//   const getArtFromCat = await rambo.call(contract, 'get_artist_from_category', { category: 'movie' })
-//   const getArtFromCat2 = await rambo.call(contract, 'get_artist_from_category', { category: 'podcasts' })
+//   console.log('ramboArtist', ramboArtist)
+//   console.log('ramboArtist2', ramboArtist2)
+//   console.log('newArt', newArt)
 
-//   console.log('artist: ', getArtFromCat)
-//   console.log('artist: ', getArtFromCat2)
+//   // const getArtFromCat = await rambo.call(contract, 'get_artist_from_category', { category: 'movie' })
+//   // const getArtFromCat2 = await rambo.call(contract, 'get_artist_from_category', { category: 'podcasts' })
+
+//   // console.log('artist: ', getArtFromCat)
+//   // console.log('artist: ', getArtFromCat2)
 
 
 // })
@@ -213,3 +248,5 @@ test('Set new user with ID', async (t) => {
 //   t.is(1, 1)
 
 // })
+
+

@@ -47,4 +47,15 @@ export class Artist {
       args: { title, about, categories, socials, subscription_types, onetime_donations, image_url }
     });
   }
+
+  async donateToArtist(artistId, dontaionUsdt) {
+
+    return await this.wallet.callMethod({
+      contractId: this.contractId,
+      method: 'donate_to_artist',
+      args: { artist_id: artistId },
+      deposit: dontaionUsdt
+    })
+
+  }
 }

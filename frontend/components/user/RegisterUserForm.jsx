@@ -1,17 +1,17 @@
 import React, { useState, useEffect } from 'react'
 
-export default function RegisterUserForm({ artist }) {
+export default function RegisterUserForm({ contract }) {
 
   const [nickname, setNickname] = useState('')
   const [allUsers, setAllUsers] = useState([])
 
   async function createUser() {
-    const user = await artist.createUserProfile('bronze', nickname)
+    const user = await contract.createUserProfile('bronze', nickname)
     console.log(user)
   }
 
   async function getUsers() {
-    const allUsers = await artist.getAllUsers()
+    const allUsers = await contract.getAllUsers()
     setAllUsers(allUsers)
   }
 

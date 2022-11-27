@@ -10,9 +10,9 @@ import { Wallet } from './near-wallet';
 
 // When creating the wallet you can optionally ask to create an access key
 // Having the key enables to call non-payable methods without interrupting the user to sign
-const wallet = new Wallet({ createAccessKeyFor: 'dev-1666790324765-29375310510305' })
+const wallet = new Wallet({ createAccessKeyFor: 'dev-1668770385370-26534245806668' })
 console.log(1111, process.env.CONTRACT_NAME)
-const artist = new Artist({ contractId: 'dev-1666790324765-29375310510305', walletToUse: wallet });
+const artist = new Artist({ contractId: 'dev-1668770385370-26534245806668', walletToUse: wallet });
 
 // Abstract the logic of interacting with the contract to simplify your flow
 

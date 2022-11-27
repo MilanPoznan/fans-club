@@ -22,25 +22,103 @@ function _applyDecoratedDescriptor(target, property, decorators, descriptor, con
   return desc;
 }
 
+// make PromiseIndex a nominal typing
+var PromiseIndexBrand;
+(function (PromiseIndexBrand) {
+  PromiseIndexBrand[PromiseIndexBrand["_"] = -1] = "_";
+})(PromiseIndexBrand || (PromiseIndexBrand = {}));
+const TYPE_KEY = "typeInfo";
+var TypeBrand;
+(function (TypeBrand) {
+  TypeBrand["BIGINT"] = "bigint";
+  TypeBrand["DATE"] = "date";
+})(TypeBrand || (TypeBrand = {}));
+const ERR_INCONSISTENT_STATE = "The collection is an inconsistent state. Did previous smart contract execution terminate unexpectedly?";
+const ERR_INDEX_OUT_OF_BOUNDS = "Index out of bounds";
+function u8ArrayToBytes(array) {
+  return array.reduce((result, value) => `${result}${String.fromCharCode(value)}`, "");
+}
+/**
+ * Asserts that the expression passed to the function is truthy, otherwise throws a new Error with the provided message.
+ *
+ * @param expression - The expression to be asserted.
+ * @param message - The error message to be printed.
+ */
+function assert(expression, message) {
+  if (!expression) {
+    throw new Error("assertion failed: " + message);
+  }
+}
+function getValueWithOptions(value, options = {
+  deserializer: deserialize
+}) {
+  const deserialized = deserialize(value);
+  if (deserialized === undefined || deserialized === null) {
+    return options?.defaultValue ?? null;
+  }
+  if (options?.reconstructor) {
+    return options.reconstructor(deserialized);
+  }
+  return deserialized;
+}
+function serializeValueWithOptions(value, {
+  serializer
+} = {
+  serializer: serialize
+}) {
+  return serializer(value);
+}
+function serialize(valueToSerialize) {
+  return JSON.stringify(valueToSerialize, function (key, value) {
+    if (typeof value === "bigint") {
+      return {
+        value: value.toString(),
+        [TYPE_KEY]: TypeBrand.BIGINT
+      };
+    }
+    if (typeof this[key] === "object" && this[key] !== null && this[key] instanceof Date) {
+      return {
+        value: this[key].toISOString(),
+        [TYPE_KEY]: TypeBrand.DATE
+      };
+    }
+    return value;
+  });
+}
+function deserialize(valueToDeserialize) {
+  return JSON.parse(valueToDeserialize, (_, value) => {
+    if (value !== null && typeof value === "object" && Object.keys(value).length === 2 && Object.keys(value).every(key => ["value", TYPE_KEY].includes(key))) {
+      switch (value[TYPE_KEY]) {
+        case TypeBrand.BIGINT:
+          return BigInt(value["value"]);
+        case TypeBrand.DATE:
+          return new Date(value["value"]);
+      }
+    }
+    return value;
+  });
+}
+
+/**
+ * A Promise result in near can be one of:
+ * - NotReady = 0 - the promise you are specifying is still not ready, not yet failed nor successful.
+ * - Successful = 1 - the promise has been successfully executed and you can retrieve the resulting value.
+ * - Failed = 2 - the promise execution has failed.
+ */
 var PromiseResult;
 (function (PromiseResult) {
   PromiseResult[PromiseResult["NotReady"] = 0] = "NotReady";
   PromiseResult[PromiseResult["Successful"] = 1] = "Successful";
   PromiseResult[PromiseResult["Failed"] = 2] = "Failed";
 })(PromiseResult || (PromiseResult = {}));
+/**
+ * A promise error can either be due to the promise failing or not yet being ready.
+ */
 var PromiseError;
 (function (PromiseError) {
   PromiseError[PromiseError["Failed"] = 0] = "Failed";
   PromiseError[PromiseError["NotReady"] = 1] = "NotReady";
 })(PromiseError || (PromiseError = {}));
-
-function u8ArrayToBytes(array) {
-  let ret = "";
-  for (let e of array) {
-    ret += String.fromCharCode(e);
-  }
-  return ret;
-}
 
 /*! scure-base - MIT License (c) 2022 Paul Miller (paulmillr.com) */
 function assertNumber(n) {
@@ -356,129 +434,158 @@ var CurveType;
   CurveType[CurveType["ED25519"] = 0] = "ED25519";
   CurveType[CurveType["SECP256K1"] = 1] = "SECP256K1";
 })(CurveType || (CurveType = {}));
+var DataLength;
+(function (DataLength) {
+  DataLength[DataLength["ED25519"] = 32] = "ED25519";
+  DataLength[DataLength["SECP256K1"] = 64] = "SECP256K1";
+})(DataLength || (DataLength = {}));
 
 const U64_MAX = 2n ** 64n - 1n;
 const EVICTED_REGISTER = U64_MAX - 1n;
+/**
+ * Logs parameters in the NEAR WASM virtual machine.
+ *
+ * @param params - Parameters to log.
+ */
 function log(...params) {
-  env.log(`${params.map(x => x === undefined ? 'undefined' : x) // Stringify undefined
-  .map(x => typeof x === 'object' ? JSON.stringify(x) : x) // Convert Objects to strings
-  .join(' ')}` // Convert to string
-  );
+  env.log(params.reduce((accumulated, parameter, index) => {
+    // Stringify undefined
+    const param = parameter === undefined ? "undefined" : parameter;
+    // Convert Objects to strings and convert to string
+    const stringified = typeof param === "object" ? JSON.stringify(param) : `${param}`;
+    if (index === 0) {
+      return stringified;
+    }
+    return `${accumulated} ${stringified}`;
+  }, ""));
 }
+/**
+ * Returns the account ID of the account that called the function.
+ * Can only be called in a call or initialize function.
+ */
 function predecessorAccountId() {
   env.predecessor_account_id(0);
   return env.read_register(0);
 }
-function attachedDeposit() {
-  return env.attached_deposit();
-}
-function storageRead(key) {
-  let ret = env.storage_read(key, 0);
-  if (ret === 1n) {
-    return env.read_register(0);
-  } else {
-    return null;
-  }
-}
-function storageHasKey(key) {
-  let ret = env.storage_has_key(key);
-  if (ret === 1n) {
-    return true;
-  } else {
-    return false;
-  }
-}
-function storageGetEvicted() {
-  return env.read_register(EVICTED_REGISTER);
-}
+/**
+ * Returns the account ID of the current contract - the contract that is being executed.
+ */
 function currentAccountId() {
   env.current_account_id(0);
   return env.read_register(0);
 }
+/**
+ * Returns the amount of NEAR attached to this function call.
+ * Can only be called in payable functions.
+ */
+function attachedDeposit() {
+  return env.attached_deposit();
+}
+/**
+ * Reads the value from NEAR storage that is stored under the provided key.
+ *
+ * @param key - The key to read from storage.
+ */
+function storageRead(key) {
+  const returnValue = env.storage_read(key, 0);
+  if (returnValue !== 1n) {
+    return null;
+  }
+  return env.read_register(0);
+}
+/**
+ * Checks for the existance of a value under the provided key in NEAR storage.
+ *
+ * @param key - The key to check for in storage.
+ */
+function storageHasKey(key) {
+  return env.storage_has_key(key) === 1n;
+}
+/**
+ * Get the last written or removed value from NEAR storage.
+ */
+function storageGetEvicted() {
+  return env.read_register(EVICTED_REGISTER);
+}
+/**
+ * Writes the provided bytes to NEAR storage under the provided key.
+ *
+ * @param key - The key under which to store the value.
+ * @param value - The value to store.
+ */
+function storageWrite(key, value) {
+  return env.storage_write(key, value, EVICTED_REGISTER) === 1n;
+}
+/**
+ * Removes the value of the provided key from NEAR storage.
+ *
+ * @param key - The key to be removed.
+ */
+function storageRemove(key) {
+  return env.storage_remove(key, EVICTED_REGISTER) === 1n;
+}
+/**
+ * Returns the arguments passed to the current smart contract call.
+ */
 function input() {
   env.input(0);
   return env.read_register(0);
 }
-function promiseAnd(...promiseIndex) {
-  return env.promise_and(...promiseIndex);
-}
+/**
+ * Create a NEAR promise which will have multiple promise actions inside.
+ *
+ * @param accountId - The account ID of the target contract.
+ */
 function promiseBatchCreate(accountId) {
   return env.promise_batch_create(accountId);
 }
-function promiseBatchThen(promiseIndex, accountId) {
-  return env.promise_batch_then(promiseIndex, accountId);
-}
-function promiseBatchActionCreateAccount(promiseIndex) {
-  env.promise_batch_action_create_account(promiseIndex);
-}
-function promiseBatchActionDeployContract(promiseIndex, code) {
-  env.promise_batch_action_deploy_contract(promiseIndex, code);
-}
-function promiseBatchActionFunctionCall(promiseIndex, methodName, args, amount, gas) {
-  env.promise_batch_action_function_call(promiseIndex, methodName, args, amount, gas);
-}
+/**
+ * Attach a transfer promise action to the NEAR promise index with the provided promise index.
+ *
+ * @param promiseIndex - The index of the promise to attach a transfer action to.
+ * @param amount - The amount of NEAR to transfer.
+ */
 function promiseBatchActionTransfer(promiseIndex, amount) {
   env.promise_batch_action_transfer(promiseIndex, amount);
 }
-function promiseBatchActionStake(promiseIndex, amount, publicKey) {
-  env.promise_batch_action_stake(promiseIndex, amount, publicKey);
-}
-function promiseBatchActionAddKeyWithFullAccess(promiseIndex, publicKey, nonce) {
-  env.promise_batch_action_add_key_with_full_access(promiseIndex, publicKey, nonce);
-}
-function promiseBatchActionAddKeyWithFunctionCall(promiseIndex, publicKey, nonce, allowance, receiverId, methodNames) {
-  env.promise_batch_action_add_key_with_function_call(promiseIndex, publicKey, nonce, allowance, receiverId, methodNames);
-}
-function promiseBatchActionDeleteKey(promiseIndex, publicKey) {
-  env.promise_batch_action_delete_key(promiseIndex, publicKey);
-}
-function promiseBatchActionDeleteAccount(promiseIndex, beneficiaryId) {
-  env.promise_batch_action_delete_account(promiseIndex, beneficiaryId);
-}
-function promiseBatchActionFunctionCallWeight(promiseIndex, methodName, args, amount, gas, weight) {
-  env.promise_batch_action_function_call_weight(promiseIndex, methodName, args, amount, gas, weight);
-}
-function promiseReturn(promiseIdx) {
-  env.promise_return(promiseIdx);
-}
-function storageWrite(key, value) {
-  let exist = env.storage_write(key, value, EVICTED_REGISTER);
-  if (exist === 1n) {
-    return true;
-  }
-  return false;
-}
-function storageRemove(key) {
-  let exist = env.storage_remove(key, EVICTED_REGISTER);
-  if (exist === 1n) {
-    return true;
-  }
-  return false;
-}
 
+/**
+ * Tells the SDK to expose this function as a view function.
+ *
+ * @param _empty - An empty object.
+ */
+function view(_empty) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return function (_target, _key, _descriptor
+  // eslint-disable-next-line @typescript-eslint/no-empty-function
+  ) {};
+}
 function call({
   privateFunction = false,
   payableFunction = false
 }) {
-  return function (target, key, descriptor) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return function (_target, _key, descriptor) {
     const originalMethod = descriptor.value;
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
     descriptor.value = function (...args) {
       if (privateFunction && predecessorAccountId() !== currentAccountId()) {
-        throw Error("Function is private");
+        throw new Error("Function is private");
       }
-      if (!payableFunction && attachedDeposit() > BigInt(0)) {
-        throw Error("Function is not payable");
+      if (!payableFunction && attachedDeposit() > 0n) {
+        throw new Error("Function is not payable");
       }
       return originalMethod.apply(this, args);
     };
   };
 }
-function view({}) {
-  return function (target, key, descriptor) {};
-}
 function NearBindgen({
-  requireInit = false
+  requireInit = false,
+  serializer = serialize,
+  deserializer = deserialize
 }) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return target => {
     return class extends target {
       static _create() {
@@ -488,25 +595,25 @@ function NearBindgen({
         const rawState = storageRead("STATE");
         return rawState ? this._deserialize(rawState) : null;
       }
-      static _saveToStorage(obj) {
-        storageWrite("STATE", this._serialize(obj));
+      static _saveToStorage(objectToSave) {
+        storageWrite("STATE", this._serialize(objectToSave));
       }
       static _getArgs() {
         return JSON.parse(input() || "{}");
       }
-      static _serialize(value) {
-        return JSON.stringify(value);
+      static _serialize(value, forReturn = false) {
+        if (forReturn) {
+          return JSON.stringify(value, (_, value) => typeof value === "bigint" ? `${value}` : value);
+        }
+        return serializer(value);
       }
       static _deserialize(value) {
-        return JSON.parse(value);
+        return deserializer(value);
       }
       static _reconstruct(classObject, plainObject) {
         for (const item in classObject) {
-          if (classObject[item].constructor?.deserialize !== undefined) {
-            classObject[item] = classObject[item].constructor.deserialize(plainObject[item]);
-          } else {
-            classObject[item] = plainObject[item];
-          }
+          const reconstructor = classObject[item].constructor?.reconstruct;
+          classObject[item] = reconstructor ? reconstructor(plainObject[item]) : plainObject[item];
         }
         return classObject;
       }
@@ -517,521 +624,470 @@ function NearBindgen({
   };
 }
 
+/**
+ * A lookup map that stores data in NEAR storage.
+ */
 class LookupMap {
+  /**
+   * @param keyPrefix - The byte prefix to use when storing elements inside this collection.
+   */
   constructor(keyPrefix) {
     this.keyPrefix = keyPrefix;
   }
+  /**
+   * Checks whether the collection contains the value.
+   *
+   * @param key - The value for which to check the presence.
+   */
   containsKey(key) {
-    let storageKey = this.keyPrefix + JSON.stringify(key);
+    const storageKey = this.keyPrefix + key;
     return storageHasKey(storageKey);
   }
-  get(key) {
-    let storageKey = this.keyPrefix + JSON.stringify(key);
-    let raw = storageRead(storageKey);
-    if (raw !== null) {
-      return JSON.parse(raw);
+  /**
+   * Get the data stored at the provided key.
+   *
+   * @param key - The key at which to look for the data.
+   * @param options - Options for retrieving the data.
+   */
+  get(key, options) {
+    const storageKey = this.keyPrefix + key;
+    const value = storageRead(storageKey);
+    return getValueWithOptions(value, options);
+  }
+  /**
+   * Removes and retrieves the element with the provided key.
+   *
+   * @param key - The key at which to remove data.
+   * @param options - Options for retrieving the data.
+   */
+  remove(key, options) {
+    const storageKey = this.keyPrefix + key;
+    if (!storageRemove(storageKey)) {
+      return options?.defaultValue ?? null;
     }
-    return null;
+    const value = storageGetEvicted();
+    return getValueWithOptions(value, options);
   }
-  remove(key) {
-    let storageKey = this.keyPrefix + JSON.stringify(key);
-    if (storageRemove(storageKey)) {
-      return JSON.parse(storageGetEvicted());
+  /**
+   * Store a new value at the provided key.
+   *
+   * @param key - The key at which to store in the collection.
+   * @param newValue - The value to store in the collection.
+   * @param options - Options for retrieving and storing the data.
+   */
+  set(key, newValue, options) {
+    const storageKey = this.keyPrefix + key;
+    const storageValue = serializeValueWithOptions(newValue, options);
+    if (!storageWrite(storageKey, storageValue)) {
+      return options?.defaultValue ?? null;
     }
-    return null;
+    const value = storageGetEvicted();
+    return getValueWithOptions(value, options);
   }
-  set(key, value) {
-    let storageKey = this.keyPrefix + JSON.stringify(key);
-    let storageValue = JSON.stringify(value);
-    if (storageWrite(storageKey, storageValue)) {
-      return JSON.parse(storageGetEvicted());
+  /**
+   * Extends the current collection with the passed in array of key-value pairs.
+   *
+   * @param keyValuePairs - The key-value pairs to extend the collection with.
+   * @param options - Options for storing the data.
+   */
+  extend(keyValuePairs, options) {
+    for (const [key, value] of keyValuePairs) {
+      this.set(key, value, options);
     }
-    return null;
   }
-  extend(objects) {
-    for (let kv of objects) {
-      this.set(kv[0], kv[1]);
-    }
+  /**
+   * Serialize the collection.
+   *
+   * @param options - Options for storing the data.
+   */
+  serialize(options) {
+    return serializeValueWithOptions(this, options);
   }
-  serialize() {
-    return JSON.stringify(this);
-  }
-  // converting plain object to class object
-  static deserialize(data) {
+  /**
+   * Converts the deserialized data from storage to a JavaScript instance of the collection.
+   *
+   * @param data - The deserialized data to create an instance from.
+   */
+  static reconstruct(data) {
     return new LookupMap(data.keyPrefix);
   }
 }
 
-const ERR_INDEX_OUT_OF_BOUNDS = "Index out of bounds";
-const ERR_INCONSISTENT_STATE$1 = "The collection is an inconsistent state. Did previous smart contract execution terminate unexpectedly?";
 function indexToKey(prefix, index) {
-  let data = new Uint32Array([index]);
-  let array = new Uint8Array(data.buffer);
-  let key = u8ArrayToBytes(array);
+  const data = new Uint32Array([index]);
+  const array = new Uint8Array(data.buffer);
+  const key = u8ArrayToBytes(array);
   return prefix + key;
 }
-/// An iterable implementation of vector that stores its content on the trie.
-/// Uses the following map: index -> element
+/**
+ * An iterable implementation of vector that stores its content on the trie.
+ * Uses the following map: index -> element
+ */
 class Vector {
-  constructor(prefix) {
-    this.length = 0;
+  /**
+   * @param prefix - The byte prefix to use when storing elements inside this collection.
+   * @param length - The initial length of the collection. By default 0.
+   */
+  constructor(prefix, length = 0) {
     this.prefix = prefix;
+    this.length = length;
   }
+  /**
+   * Checks whether the collection is empty.
+   */
   isEmpty() {
-    return this.length == 0;
+    return this.length === 0;
   }
-  get(index) {
+  /**
+   * Get the data stored at the provided index.
+   *
+   * @param index - The index at which to look for the data.
+   * @param options - Options for retrieving the data.
+   */
+  get(index, options) {
     if (index >= this.length) {
-      return null;
+      return options?.defaultValue ?? null;
     }
-    let storageKey = indexToKey(this.prefix, index);
-    return JSON.parse(storageRead(storageKey));
+    const storageKey = indexToKey(this.prefix, index);
+    const value = storageRead(storageKey);
+    return getValueWithOptions(value, options);
   }
-  /// Removes an element from the vector and returns it in serialized form.
-  /// The removed element is replaced by the last element of the vector.
-  /// Does not preserve ordering, but is `O(1)`.
-  swapRemove(index) {
-    if (index >= this.length) {
-      throw new Error(ERR_INDEX_OUT_OF_BOUNDS);
-    } else if (index + 1 == this.length) {
-      return this.pop();
-    } else {
-      let key = indexToKey(this.prefix, index);
-      let last = this.pop();
-      if (storageWrite(key, JSON.stringify(last))) {
-        return JSON.parse(storageGetEvicted());
-      } else {
-        throw new Error(ERR_INCONSISTENT_STATE$1);
-      }
+  /**
+   * Removes an element from the vector and returns it in serialized form.
+   * The removed element is replaced by the last element of the vector.
+   * Does not preserve ordering, but is `O(1)`.
+   *
+   * @param index - The index at which to remove the element.
+   * @param options - Options for retrieving and storing the data.
+   */
+  swapRemove(index, options) {
+    assert(index < this.length, ERR_INDEX_OUT_OF_BOUNDS);
+    if (index + 1 === this.length) {
+      return this.pop(options);
     }
+    const key = indexToKey(this.prefix, index);
+    const last = this.pop(options);
+    assert(storageWrite(key, serializeValueWithOptions(last, options)), ERR_INCONSISTENT_STATE);
+    const value = storageGetEvicted();
+    return getValueWithOptions(value, options);
   }
-  push(element) {
-    let key = indexToKey(this.prefix, this.length);
+  /**
+   * Adds data to the collection.
+   *
+   * @param element - The data to store.
+   * @param options - Options for storing the data.
+   */
+  push(element, options) {
+    const key = indexToKey(this.prefix, this.length);
     this.length += 1;
-    storageWrite(key, JSON.stringify(element));
+    storageWrite(key, serializeValueWithOptions(element, options));
   }
-  pop() {
+  /**
+   * Removes and retrieves the element with the highest index.
+   *
+   * @param options - Options for retrieving the data.
+   */
+  pop(options) {
     if (this.isEmpty()) {
-      return null;
-    } else {
-      let lastIndex = this.length - 1;
-      let lastKey = indexToKey(this.prefix, lastIndex);
-      this.length -= 1;
-      if (storageRemove(lastKey)) {
-        return JSON.parse(storageGetEvicted());
-      } else {
-        throw new Error(ERR_INCONSISTENT_STATE$1);
-      }
+      return options?.defaultValue ?? null;
     }
+    const lastIndex = this.length - 1;
+    const lastKey = indexToKey(this.prefix, lastIndex);
+    this.length -= 1;
+    assert(storageRemove(lastKey), ERR_INCONSISTENT_STATE);
+    const value = storageGetEvicted();
+    return getValueWithOptions(value, options);
   }
-  replace(index, element) {
-    if (index >= this.length) {
-      throw new Error(ERR_INDEX_OUT_OF_BOUNDS);
-    } else {
-      let key = indexToKey(this.prefix, index);
-      if (storageWrite(key, JSON.stringify(element))) {
-        return JSON.parse(storageGetEvicted());
-      } else {
-        throw new Error(ERR_INCONSISTENT_STATE$1);
-      }
-    }
+  /**
+   * Replaces the data stored at the provided index with the provided data and returns the previously stored data.
+   *
+   * @param index - The index at which to replace the data.
+   * @param element - The data to replace with.
+   * @param options - Options for retrieving and storing the data.
+   */
+  replace(index, element, options) {
+    assert(index < this.length, ERR_INDEX_OUT_OF_BOUNDS);
+    const key = indexToKey(this.prefix, index);
+    assert(storageWrite(key, serializeValueWithOptions(element, options)), ERR_INCONSISTENT_STATE);
+    const value = storageGetEvicted();
+    return getValueWithOptions(value, options);
   }
+  /**
+   * Extends the current collection with the passed in array of elements.
+   *
+   * @param elements - The elements to extend the collection with.
+   */
   extend(elements) {
-    for (let element of elements) {
+    for (const element of elements) {
       this.push(element);
     }
   }
   [Symbol.iterator]() {
     return new VectorIterator(this);
   }
+  /**
+   * Create a iterator on top of the default collection iterator using custom options.
+   *
+   * @param options - Options for retrieving and storing the data.
+   */
+  createIteratorWithOptions(options) {
+    return {
+      [Symbol.iterator]: () => new VectorIterator(this, options)
+    };
+  }
+  /**
+   * Return a JavaScript array of the data stored within the collection.
+   *
+   * @param options - Options for retrieving and storing the data.
+   */
+  toArray(options) {
+    const array = [];
+    const iterator = options ? this.createIteratorWithOptions(options) : this;
+    for (const value of iterator) {
+      array.push(value);
+    }
+    return array;
+  }
+  /**
+   * Remove all of the elements stored within the collection.
+   */
   clear() {
-    for (let i = 0; i < this.length; i++) {
-      let key = indexToKey(this.prefix, i);
+    for (let index = 0; index < this.length; index++) {
+      const key = indexToKey(this.prefix, index);
       storageRemove(key);
     }
     this.length = 0;
   }
-  toArray() {
-    let ret = [];
-    for (let v of this) {
-      ret.push(v);
-    }
-    return ret;
+  /**
+   * Serialize the collection.
+   *
+   * @param options - Options for storing the data.
+   */
+  serialize(options) {
+    return serializeValueWithOptions(this, options);
   }
-  serialize() {
-    return JSON.stringify(this);
-  }
-  // converting plain object to class object
-  static deserialize(data) {
-    let vector = new Vector(data.prefix);
-    vector.length = data.length;
+  /**
+   * Converts the deserialized data from storage to a JavaScript instance of the collection.
+   *
+   * @param data - The deserialized data to create an instance from.
+   */
+  static reconstruct(data) {
+    const vector = new Vector(data.prefix, data.length);
     return vector;
   }
 }
+/**
+ * An iterator for the Vector collection.
+ */
 class VectorIterator {
-  constructor(vector) {
-    this.current = 0;
+  /**
+   * @param vector - The vector collection to create an iterator for.
+   * @param options - Options for retrieving and storing data.
+   */
+  constructor(vector, options) {
     this.vector = vector;
+    this.options = options;
+    this.current = 0;
   }
   next() {
-    if (this.current < this.vector.length) {
-      let value = this.vector.get(this.current);
-      this.current += 1;
+    if (this.current >= this.vector.length) {
       return {
-        value,
-        done: false
+        value: null,
+        done: true
       };
     }
+    const value = this.vector.get(this.current, this.options);
+    this.current += 1;
     return {
-      value: null,
-      done: true
+      value,
+      done: false
     };
   }
 }
 
-const ERR_INCONSISTENT_STATE = "The collection is an inconsistent state. Did previous smart contract execution terminate unexpectedly?";
+/**
+ * An unordered map that stores data in NEAR storage.
+ */
 class UnorderedMap {
+  /**
+   * @param prefix - The byte prefix to use when storing elements inside this collection.
+   */
   constructor(prefix) {
     this.prefix = prefix;
-    this.keys = new Vector(prefix + 'u'); // intentional different prefix with old UnorderedMap
-    this.values = new LookupMap(prefix + 'm');
+    this.keys = new Vector(`${prefix}u`); // intentional different prefix with old UnorderedMap
+    this.values = new LookupMap(`${prefix}m`);
   }
+  /**
+   * The number of elements stored in the collection.
+   */
   get length() {
-    let keysLen = this.keys.length;
-    return keysLen;
+    return this.keys.length;
   }
+  /**
+   * Checks whether the collection is empty.
+   */
   isEmpty() {
-    let keysIsEmpty = this.keys.isEmpty();
-    return keysIsEmpty;
+    return this.keys.isEmpty();
   }
-  get(key) {
-    let valueAndIndex = this.values.get(key);
+  /**
+   * Get the data stored at the provided key.
+   *
+   * @param key - The key at which to look for the data.
+   * @param options - Options for retrieving the data.
+   */
+  get(key, options) {
+    const valueAndIndex = this.values.get(key);
     if (valueAndIndex === null) {
+      return options?.defaultValue ?? null;
+    }
+    const [value] = valueAndIndex;
+    return getValueWithOptions(value, options);
+  }
+  /**
+   * Store a new value at the provided key.
+   *
+   * @param key - The key at which to store in the collection.
+   * @param value - The value to store in the collection.
+   * @param options - Options for retrieving and storing the data.
+   */
+  set(key, value, options) {
+    const valueAndIndex = this.values.get(key);
+    const serialized = serializeValueWithOptions(value, options);
+    if (valueAndIndex === null) {
+      const newElementIndex = this.length;
+      this.keys.push(key);
+      this.values.set(key, [serialized, newElementIndex]);
       return null;
     }
-    let value = valueAndIndex[0];
-    return value;
+    const [oldValue, oldIndex] = valueAndIndex;
+    this.values.set(key, [serialized, oldIndex]);
+    return getValueWithOptions(oldValue, options);
   }
-  set(key, value) {
-    let valueAndIndex = this.values.get(key);
-    if (valueAndIndex !== null) {
-      let oldValue = valueAndIndex[0];
-      valueAndIndex[0] = value;
-      this.values.set(key, valueAndIndex);
-      return oldValue;
-    }
-    let nextIndex = this.length;
-    this.keys.push(key);
-    this.values.set(key, [value, nextIndex]);
-    return null;
-  }
-  remove(key) {
-    let oldValueAndIndex = this.values.remove(key);
+  /**
+   * Removes and retrieves the element with the provided key.
+   *
+   * @param key - The key at which to remove data.
+   * @param options - Options for retrieving the data.
+   */
+  remove(key, options) {
+    const oldValueAndIndex = this.values.remove(key);
     if (oldValueAndIndex === null) {
-      return null;
+      return options?.defaultValue ?? null;
     }
-    let index = oldValueAndIndex[1];
-    if (this.keys.swapRemove(index) === null) {
-      throw new Error(ERR_INCONSISTENT_STATE);
-    }
+    const [value, index] = oldValueAndIndex;
+    assert(this.keys.swapRemove(index) !== null, ERR_INCONSISTENT_STATE);
     // the last key is swapped to key[index], the corresponding [value, index] need update
-    if (this.keys.length > 0 && index != this.keys.length) {
+    if (!this.keys.isEmpty() && index !== this.keys.length) {
       // if there is still elements and it was not the last element
-      let swappedKey = this.keys.get(index);
-      let swappedValueAndIndex = this.values.get(swappedKey);
-      if (swappedValueAndIndex === null) {
-        throw new Error(ERR_INCONSISTENT_STATE);
-      }
+      const swappedKey = this.keys.get(index);
+      const swappedValueAndIndex = this.values.get(swappedKey);
+      assert(swappedValueAndIndex !== null, ERR_INCONSISTENT_STATE);
       this.values.set(swappedKey, [swappedValueAndIndex[0], index]);
     }
-    return oldValueAndIndex[0];
+    return getValueWithOptions(value, options);
   }
+  /**
+   * Remove all of the elements stored within the collection.
+   */
   clear() {
-    for (let key of this.keys) {
+    for (const key of this.keys) {
       // Set instead of remove to avoid loading the value from storage.
       this.values.set(key, null);
     }
     this.keys.clear();
   }
-  toArray() {
-    let ret = [];
-    for (let v of this) {
-      ret.push(v);
-    }
-    return ret;
-  }
   [Symbol.iterator]() {
     return new UnorderedMapIterator(this);
   }
-  extend(kvs) {
-    for (let [k, v] of kvs) {
-      this.set(k, v);
+  /**
+   * Create a iterator on top of the default collection iterator using custom options.
+   *
+   * @param options - Options for retrieving and storing the data.
+   */
+  createIteratorWithOptions(options) {
+    return {
+      [Symbol.iterator]: () => new UnorderedMapIterator(this, options)
+    };
+  }
+  /**
+   * Return a JavaScript array of the data stored within the collection.
+   *
+   * @param options - Options for retrieving and storing the data.
+   */
+  toArray(options) {
+    const array = [];
+    const iterator = options ? this.createIteratorWithOptions(options) : this;
+    for (const value of iterator) {
+      array.push(value);
+    }
+    return array;
+  }
+  /**
+   * Extends the current collection with the passed in array of key-value pairs.
+   *
+   * @param keyValuePairs - The key-value pairs to extend the collection with.
+   */
+  extend(keyValuePairs) {
+    for (const [key, value] of keyValuePairs) {
+      this.set(key, value);
     }
   }
-  serialize() {
-    return JSON.stringify(this);
+  /**
+   * Serialize the collection.
+   *
+   * @param options - Options for storing the data.
+   */
+  serialize(options) {
+    return serializeValueWithOptions(this, options);
   }
-  // converting plain object to class object
-  static deserialize(data) {
-    let map = new UnorderedMap(data.prefix);
+  /**
+   * Converts the deserialized data from storage to a JavaScript instance of the collection.
+   *
+   * @param data - The deserialized data to create an instance from.
+   */
+  static reconstruct(data) {
+    const map = new UnorderedMap(data.prefix);
     // reconstruct keys Vector
-    map.keys = new Vector(data.prefix + "u");
+    map.keys = new Vector(`${data.prefix}u`);
     map.keys.length = data.keys.length;
     // reconstruct values LookupMap
-    map.values = new LookupMap(data.prefix + "m");
+    map.values = new LookupMap(`${data.prefix}m`);
     return map;
   }
 }
+/**
+ * An iterator for the UnorderedMap collection.
+ */
 class UnorderedMapIterator {
-  constructor(unorderedMap) {
+  /**
+   * @param unorderedMap - The unordered map collection to create an iterator for.
+   * @param options - Options for retrieving and storing data.
+   */
+  constructor(unorderedMap, options) {
+    this.options = options;
     this.keys = new VectorIterator(unorderedMap.keys);
     this.map = unorderedMap.values;
   }
   next() {
-    let key = this.keys.next();
-    let value;
-    if (!key.done) {
-      value = this.map.get(key.value);
-      if (value === null) {
-        throw new Error(ERR_INCONSISTENT_STATE);
-      }
+    const key = this.keys.next();
+    if (key.done) {
+      return {
+        value: [key.value, null],
+        done: key.done
+      };
     }
+    const valueAndIndex = this.map.get(key.value);
+    assert(valueAndIndex !== null, ERR_INCONSISTENT_STATE);
     return {
-      value: [key.value, value ? value[0] : value],
-      done: key.done
+      done: key.done,
+      value: [key.value, getValueWithOptions(valueAndIndex[0], this.options)]
     };
-  }
-}
-
-class PromiseAction {}
-class CreateAccount extends PromiseAction {
-  add(promise_index) {
-    promiseBatchActionCreateAccount(promise_index);
-  }
-}
-class DeployContract extends PromiseAction {
-  constructor(code) {
-    super();
-    this.code = code;
-  }
-  add(promise_index) {
-    promiseBatchActionDeployContract(promise_index, this.code);
-  }
-}
-class FunctionCall extends PromiseAction {
-  constructor(function_name, args, amount, gas) {
-    super();
-    this.function_name = function_name;
-    this.args = args;
-    this.amount = amount;
-    this.gas = gas;
-  }
-  add(promise_index) {
-    promiseBatchActionFunctionCall(promise_index, this.function_name, this.args, this.amount, this.gas);
-  }
-}
-class FunctionCallWeight extends PromiseAction {
-  constructor(function_name, args, amount, gas, weight) {
-    super();
-    this.function_name = function_name;
-    this.args = args;
-    this.amount = amount;
-    this.gas = gas;
-    this.weight = weight;
-  }
-  add(promise_index) {
-    promiseBatchActionFunctionCallWeight(promise_index, this.function_name, this.args, this.amount, this.gas, this.weight);
-  }
-}
-class Transfer extends PromiseAction {
-  constructor(amount) {
-    super();
-    this.amount = amount;
-  }
-  add(promise_index) {
-    promiseBatchActionTransfer(promise_index, this.amount);
-  }
-}
-class Stake extends PromiseAction {
-  constructor(amount, public_key) {
-    super();
-    this.amount = amount;
-    this.public_key = public_key;
-  }
-  add(promise_index) {
-    promiseBatchActionStake(promise_index, this.amount, this.public_key.data);
-  }
-}
-class AddFullAccessKey extends PromiseAction {
-  constructor(public_key, nonce) {
-    super();
-    this.public_key = public_key;
-    this.nonce = nonce;
-  }
-  add(promise_index) {
-    promiseBatchActionAddKeyWithFullAccess(promise_index, this.public_key.data, this.nonce);
-  }
-}
-class AddAccessKey extends PromiseAction {
-  constructor(public_key, allowance, receiver_id, function_names, nonce) {
-    super();
-    this.public_key = public_key;
-    this.allowance = allowance;
-    this.receiver_id = receiver_id;
-    this.function_names = function_names;
-    this.nonce = nonce;
-  }
-  add(promise_index) {
-    promiseBatchActionAddKeyWithFunctionCall(promise_index, this.public_key.data, this.nonce, this.allowance, this.receiver_id, this.function_names);
-  }
-}
-class DeleteKey extends PromiseAction {
-  constructor(public_key) {
-    super();
-    this.public_key = public_key;
-  }
-  add(promise_index) {
-    promiseBatchActionDeleteKey(promise_index, this.public_key.data);
-  }
-}
-class DeleteAccount extends PromiseAction {
-  constructor(beneficiary_id) {
-    super();
-    this.beneficiary_id = beneficiary_id;
-  }
-  add(promise_index) {
-    promiseBatchActionDeleteAccount(promise_index, this.beneficiary_id);
-  }
-}
-class PromiseSingle {
-  constructor(account_id, actions, after, promise_index) {
-    this.account_id = account_id;
-    this.actions = actions;
-    this.after = after;
-    this.promise_index = promise_index;
-  }
-  constructRecursively() {
-    if (this.promise_index !== null) {
-      return this.promise_index;
-    }
-    let promise_index;
-    if (this.after) {
-      promise_index = promiseBatchThen(this.after.constructRecursively(), this.account_id);
-    } else {
-      promise_index = promiseBatchCreate(this.account_id);
-    }
-    for (let action of this.actions) {
-      action.add(promise_index);
-    }
-    this.promise_index = promise_index;
-    return promise_index;
-  }
-}
-class PromiseJoint {
-  constructor(promise_a, promise_b, promise_index) {
-    this.promise_a = promise_a;
-    this.promise_b = promise_b;
-    this.promise_index = promise_index;
-  }
-  constructRecursively() {
-    if (this.promise_index !== null) {
-      return this.promise_index;
-    }
-    let res = promiseAnd(BigInt(this.promise_a.constructRecursively()), BigInt(this.promise_b.constructRecursively()));
-    this.promise_index = res;
-    return res;
-  }
-}
-class NearPromise {
-  constructor(subtype, should_return) {
-    this.subtype = subtype;
-    this.should_return = should_return;
-  }
-  static new(account_id) {
-    let subtype = new PromiseSingle(account_id, [], null, null);
-    let ret = new NearPromise(subtype, false);
-    return ret;
-  }
-  add_action(action) {
-    if (this.subtype instanceof PromiseJoint) {
-      throw new Error("Cannot add action to a joint promise.");
-    } else {
-      this.subtype.actions.push(action);
-    }
-    return this;
-  }
-  createAccount() {
-    return this.add_action(new CreateAccount());
-  }
-  deployContract(code) {
-    return this.add_action(new DeployContract(code));
-  }
-  functionCall(function_name, args, amount, gas) {
-    return this.add_action(new FunctionCall(function_name, args, amount, gas));
-  }
-  functionCallWeight(function_name, args, amount, gas, weight) {
-    return this.add_action(new FunctionCallWeight(function_name, args, amount, gas, weight));
-  }
-  transfer(amount) {
-    return this.add_action(new Transfer(amount));
-  }
-  stake(amount, public_key) {
-    return this.add_action(new Stake(amount, public_key));
-  }
-  addFullAccessKey(public_key) {
-    return this.addFullAccessKeyWithNonce(public_key, 0n);
-  }
-  addFullAccessKeyWithNonce(public_key, nonce) {
-    return this.add_action(new AddFullAccessKey(public_key, nonce));
-  }
-  addAccessKey(public_key, allowance, receiver_id, method_names) {
-    return this.addAccessKeyWithNonce(public_key, allowance, receiver_id, method_names, 0n);
-  }
-  addAccessKeyWithNonce(public_key, allowance, receiver_id, method_names, nonce) {
-    return this.add_action(new AddAccessKey(public_key, allowance, receiver_id, method_names, nonce));
-  }
-  deleteKey(public_key) {
-    return this.add_action(new DeleteKey(public_key));
-  }
-  deleteAccount(beneficiary_id) {
-    return this.add_action(new DeleteAccount(beneficiary_id));
-  }
-  and(other) {
-    let subtype = new PromiseJoint(this, other, null);
-    let ret = new NearPromise(subtype, false);
-    return ret;
-  }
-  then(other) {
-    if (other.subtype instanceof PromiseSingle) {
-      if (other.subtype.after !== null) {
-        throw new Error("Cannot callback promise which is already scheduled after another");
-      }
-      other.subtype.after = this;
-    } else {
-      throw new Error("Cannot callback joint promise.");
-    }
-    return other;
-  }
-  asReturn() {
-    this.should_return = true;
-    return this;
-  }
-  constructRecursively() {
-    let res = this.subtype.constructRecursively();
-    if (this.should_return) {
-      promiseReturn(res);
-    }
-    return res;
-  }
-  // Called by NearBindgen, when return object is a NearPromise instance.
-  onReturn() {
-    this.asReturn().constructRecursively();
   }
 }
 
 // 'use strict';
 
-const STORAGE_COST = BigInt("1000000000000000000000");
+BigInt("1000000000000000000000");
 class ArtistModel {
   //wallet id
 
@@ -1054,7 +1110,7 @@ class ArtistModel {
     this.onetime_donations = onetime_donations;
     this.image_url = image_url;
     this.total_donations_near = '0';
-    this.total_donations_usd = 0;
+    this.total_donations_usd = BigInt(0);
     this.total_donations_count = 0;
   }
 }
@@ -1068,17 +1124,11 @@ function createDonationTransaction(artistId, donationAmount, isOneTimeDonation, 
   };
 }
 
-function updateUserAfterDonation(currentUser, donationTransaction, dontaionUsdt, toTransfer) {
-  currentUser.total_transactions += 1;
-  currentUser.total_dontaions += toTransfer;
-  currentUser.subscription_lists.push(donationTransaction);
-  currentUser.total_dontaions_usdt += dontaionUsdt;
-}
 function initUser(account_id, status, nickname) {
   return {
     account_id: account_id,
     total_dontaions: '0',
-    total_dontaions_usdt: 0,
+    total_dontaions_usdt: BigInt(0),
     total_transactions: 0,
     subscription_lists: [],
     user_status: status,
@@ -1086,25 +1136,16 @@ function initUser(account_id, status, nickname) {
   };
 }
 
-function updateArtistAfterDonation(artistToDonate, toTransfer, dontaionUsdt) {
-  let artistPreviousDonations = BigInt(artistToDonate.total_donations_near);
-  let calcTotalDonations = artistPreviousDonations + toTransfer;
-
-  //Artist
-  artistToDonate.total_donations_near = calcTotalDonations.toString();
-  artistToDonate.total_donations_count += 1;
-  artistToDonate.total_donations_usd = artistToDonate.total_donations_usd + dontaionUsdt;
-}
-
 var _dec, _dec2, _dec3, _dec4, _dec5, _dec6, _dec7, _dec8, _dec9, _class, _class2;
 //Moram logiku za storage cost da odradim kada se registruju User & Artst
-let Artist = (_dec = NearBindgen({}), _dec2 = view({}), _dec3 = view({}), _dec4 = view({}), _dec5 = view({}), _dec6 = view({}), _dec7 = call({}), _dec8 = call({}), _dec9 = call({
+let Artist = (_dec = NearBindgen({}), _dec2 = view(), _dec3 = view(), _dec4 = view(), _dec5 = view(), _dec6 = view(), _dec7 = call({}), _dec8 = call({}), _dec9 = call({
   payableFunction: true
 }), _dec(_class = (_class2 = class Artist {
   //
   // allArtists: SingleAritstType = {} //lookup map
   // users: UserInterface[] = [] //vec
-
+  contractDonations = BigInt(0);
+  accountForProfit = 'maddev.testnet';
   all_artists = new UnorderedMap('map-art');
   all_users = new LookupMap('map-usr');
   get_artist({
@@ -1113,7 +1154,7 @@ let Artist = (_dec = NearBindgen({}), _dec2 = view({}), _dec3 = view({}), _dec4 
     return this.all_artists.get(account_id);
   }
   get_all_artist() {
-    return this.all_artists;
+    return this.all_artists.toArray();
   }
   get_artist_from_category({
     category
@@ -1181,167 +1222,154 @@ let Artist = (_dec = NearBindgen({}), _dec2 = view({}), _dec3 = view({}), _dec4 
     }
   }
   donate_to_artist({
-    artist_id,
-    dontaionUsdt
+    artist_id
   }) {
     //User 
     const donor = predecessorAccountId();
-    // const filterCurrentUser = this.users.filter(user => user.account_id === donor)
-    const currentUser = this.all_users.get(donor);
-    log('currentUser', currentUser);
-    // const currentUser = filterCurrentUser[0]
+    log('donor', donor);
+    // const currentUser = this.all_users.get(donor) as UserInterface
+
+    // near.log('currentUser', currentUser)
+
     //Attach deposit
     const donationAmount = attachedDeposit();
 
     //Artist
-    const artistToDonate = this.all_artists.get(artist_id);
-    let toTransfer = donationAmount;
-    log(1, toTransfer);
-    toTransfer -= STORAGE_COST;
+    const artistToDonate = this.all_artists.get('artisttest.testnet');
 
-    //My 5% 
-    let myMoney = toTransfer / BigInt(20);
-    //Artist money = 95%
-    let transferToArtist = toTransfer - myMoney;
-    log('myMoney- ', myMoney);
-    log('transferToArtist- ', transferToArtist);
-    log(transferToArtist);
+    // let toTransfer = donationAmount - STORAGE_COST;
 
-    //Send to artist
-    // const artistPromise = near.promiseBatchCreate(artist_id)
-    // const myPromise = near.promiseBatchCreate('maddev.testnet')
+    log('toTransfer ', donationAmount);
+    log('artistToDonate', artistToDonate.account_id);
 
-    // const tx = near.promiseBatchActionTransfer(artistPromise, toTransfer)
-    // const myTx = near.promiseBatchActionTransfer(myMoney, myPromise)
-
-    // const artistStatus = near.promiseReturn(artistPromise);
-    // const myPromise = near.promiseBatchCreate(this.accountForProfit)
-    // const myTransaction = near.promiseBatchActionTransfer(myPromise, myMoney)
-
-    // near.log('transaction ==== ', tx)
-    // near.log('myTx', myTx)
-    //Demo for now 
-
-    const promise = NearPromise.new(artistToDonate.account_id);
-    promise.transfer(toTransfer);
-    promise.onReturn();
-    const donationTransaction = createDonationTransaction(artist_id, donationAmount, true, '20-11-2022');
-    log('Curr user Before donations', currentUser);
+    // const promise = NearPromise.new(artistToDonate.account_id);
+    // const promise = near.promiseBatchCreate(artistToDonate.account_id)
+    // const promise = NearPromise.new(artistToDonate.account_id);
+    // promise.transfer(donationAmount)
+    // promise.onReturn();
+    const promise = promiseBatchCreate('artisttest.testnet');
+    promiseBatchActionTransfer(promise, donationAmount);
+    createDonationTransaction(artist_id, donationAmount, true, '20-11-2022');
+    log('Curr user Before donations', donor);
     log('Artist Before donations:', artistToDonate);
-    if (currentUser) {
-      updateUserAfterDonation(currentUser, donationTransaction, dontaionUsdt, toTransfer);
-    } else {
-      return `Please create account for ${donor} account`;
-    }
-    updateArtistAfterDonation(artistToDonate, toTransfer, dontaionUsdt);
+
+    // if (donor) {
+    //   updateUserAfterDonation(currentUser, donationTransaction, donationAmount, donationAmount)
+    // } else {
+    //   return `Please create account for ${donor} account`
+    // }
+
+    // updateArtistAfterDonation(artistToDonate, donationAmount, donationAmount)
+
+    // return currentUser
   }
 }, (_applyDecoratedDescriptor(_class2.prototype, "get_artist", [_dec2], Object.getOwnPropertyDescriptor(_class2.prototype, "get_artist"), _class2.prototype), _applyDecoratedDescriptor(_class2.prototype, "get_all_artist", [_dec3], Object.getOwnPropertyDescriptor(_class2.prototype, "get_all_artist"), _class2.prototype), _applyDecoratedDescriptor(_class2.prototype, "get_artist_from_category", [_dec4], Object.getOwnPropertyDescriptor(_class2.prototype, "get_artist_from_category"), _class2.prototype), _applyDecoratedDescriptor(_class2.prototype, "get_all_users", [_dec5], Object.getOwnPropertyDescriptor(_class2.prototype, "get_all_users"), _class2.prototype), _applyDecoratedDescriptor(_class2.prototype, "get_user", [_dec6], Object.getOwnPropertyDescriptor(_class2.prototype, "get_user"), _class2.prototype), _applyDecoratedDescriptor(_class2.prototype, "create_user_profile", [_dec7], Object.getOwnPropertyDescriptor(_class2.prototype, "create_user_profile"), _class2.prototype), _applyDecoratedDescriptor(_class2.prototype, "create_artist", [_dec8], Object.getOwnPropertyDescriptor(_class2.prototype, "create_artist"), _class2.prototype), _applyDecoratedDescriptor(_class2.prototype, "donate_to_artist", [_dec9], Object.getOwnPropertyDescriptor(_class2.prototype, "donate_to_artist"), _class2.prototype)), _class2)) || _class);
 function donate_to_artist() {
-  let _state = Artist._getState();
+  const _state = Artist._getState();
   if (!_state && Artist._requireInit()) {
     throw new Error("Contract must be initialized");
   }
-  let _contract = Artist._create();
+  const _contract = Artist._create();
   if (_state) {
     Artist._reconstruct(_contract, _state);
   }
-  let _args = Artist._getArgs();
-  let _result = _contract.donate_to_artist(_args);
+  const _args = Artist._getArgs();
+  const _result = _contract.donate_to_artist(_args);
   Artist._saveToStorage(_contract);
-  if (_result !== undefined) if (_result && _result.constructor && _result.constructor.name === "NearPromise") _result.onReturn();else env.value_return(Artist._serialize(_result));
+  if (_result !== undefined) if (_result && _result.constructor && _result.constructor.name === "NearPromise") _result.onReturn();else env.value_return(Artist._serialize(_result, true));
 }
 function create_artist() {
-  let _state = Artist._getState();
+  const _state = Artist._getState();
   if (!_state && Artist._requireInit()) {
     throw new Error("Contract must be initialized");
   }
-  let _contract = Artist._create();
+  const _contract = Artist._create();
   if (_state) {
     Artist._reconstruct(_contract, _state);
   }
-  let _args = Artist._getArgs();
-  let _result = _contract.create_artist(_args);
+  const _args = Artist._getArgs();
+  const _result = _contract.create_artist(_args);
   Artist._saveToStorage(_contract);
-  if (_result !== undefined) if (_result && _result.constructor && _result.constructor.name === "NearPromise") _result.onReturn();else env.value_return(Artist._serialize(_result));
+  if (_result !== undefined) if (_result && _result.constructor && _result.constructor.name === "NearPromise") _result.onReturn();else env.value_return(Artist._serialize(_result, true));
 }
 function create_user_profile() {
-  let _state = Artist._getState();
+  const _state = Artist._getState();
   if (!_state && Artist._requireInit()) {
     throw new Error("Contract must be initialized");
   }
-  let _contract = Artist._create();
+  const _contract = Artist._create();
   if (_state) {
     Artist._reconstruct(_contract, _state);
   }
-  let _args = Artist._getArgs();
-  let _result = _contract.create_user_profile(_args);
+  const _args = Artist._getArgs();
+  const _result = _contract.create_user_profile(_args);
   Artist._saveToStorage(_contract);
-  if (_result !== undefined) if (_result && _result.constructor && _result.constructor.name === "NearPromise") _result.onReturn();else env.value_return(Artist._serialize(_result));
+  if (_result !== undefined) if (_result && _result.constructor && _result.constructor.name === "NearPromise") _result.onReturn();else env.value_return(Artist._serialize(_result, true));
 }
 function get_user() {
-  let _state = Artist._getState();
+  const _state = Artist._getState();
   if (!_state && Artist._requireInit()) {
     throw new Error("Contract must be initialized");
   }
-  let _contract = Artist._create();
+  const _contract = Artist._create();
   if (_state) {
     Artist._reconstruct(_contract, _state);
   }
-  let _args = Artist._getArgs();
-  let _result = _contract.get_user(_args);
-  if (_result !== undefined) if (_result && _result.constructor && _result.constructor.name === "NearPromise") _result.onReturn();else env.value_return(Artist._serialize(_result));
+  const _args = Artist._getArgs();
+  const _result = _contract.get_user(_args);
+  if (_result !== undefined) if (_result && _result.constructor && _result.constructor.name === "NearPromise") _result.onReturn();else env.value_return(Artist._serialize(_result, true));
 }
 function get_all_users() {
-  let _state = Artist._getState();
+  const _state = Artist._getState();
   if (!_state && Artist._requireInit()) {
     throw new Error("Contract must be initialized");
   }
-  let _contract = Artist._create();
+  const _contract = Artist._create();
   if (_state) {
     Artist._reconstruct(_contract, _state);
   }
-  let _args = Artist._getArgs();
-  let _result = _contract.get_all_users(_args);
-  if (_result !== undefined) if (_result && _result.constructor && _result.constructor.name === "NearPromise") _result.onReturn();else env.value_return(Artist._serialize(_result));
+  const _args = Artist._getArgs();
+  const _result = _contract.get_all_users(_args);
+  if (_result !== undefined) if (_result && _result.constructor && _result.constructor.name === "NearPromise") _result.onReturn();else env.value_return(Artist._serialize(_result, true));
 }
 function get_artist_from_category() {
-  let _state = Artist._getState();
+  const _state = Artist._getState();
   if (!_state && Artist._requireInit()) {
     throw new Error("Contract must be initialized");
   }
-  let _contract = Artist._create();
+  const _contract = Artist._create();
   if (_state) {
     Artist._reconstruct(_contract, _state);
   }
-  let _args = Artist._getArgs();
-  let _result = _contract.get_artist_from_category(_args);
-  if (_result !== undefined) if (_result && _result.constructor && _result.constructor.name === "NearPromise") _result.onReturn();else env.value_return(Artist._serialize(_result));
+  const _args = Artist._getArgs();
+  const _result = _contract.get_artist_from_category(_args);
+  if (_result !== undefined) if (_result && _result.constructor && _result.constructor.name === "NearPromise") _result.onReturn();else env.value_return(Artist._serialize(_result, true));
 }
 function get_all_artist() {
-  let _state = Artist._getState();
+  const _state = Artist._getState();
   if (!_state && Artist._requireInit()) {
     throw new Error("Contract must be initialized");
   }
-  let _contract = Artist._create();
+  const _contract = Artist._create();
   if (_state) {
     Artist._reconstruct(_contract, _state);
   }
-  let _args = Artist._getArgs();
-  let _result = _contract.get_all_artist(_args);
-  if (_result !== undefined) if (_result && _result.constructor && _result.constructor.name === "NearPromise") _result.onReturn();else env.value_return(Artist._serialize(_result));
+  const _args = Artist._getArgs();
+  const _result = _contract.get_all_artist(_args);
+  if (_result !== undefined) if (_result && _result.constructor && _result.constructor.name === "NearPromise") _result.onReturn();else env.value_return(Artist._serialize(_result, true));
 }
 function get_artist() {
-  let _state = Artist._getState();
+  const _state = Artist._getState();
   if (!_state && Artist._requireInit()) {
     throw new Error("Contract must be initialized");
   }
-  let _contract = Artist._create();
+  const _contract = Artist._create();
   if (_state) {
     Artist._reconstruct(_contract, _state);
   }
-  let _args = Artist._getArgs();
-  let _result = _contract.get_artist(_args);
-  if (_result !== undefined) if (_result && _result.constructor && _result.constructor.name === "NearPromise") _result.onReturn();else env.value_return(Artist._serialize(_result));
+  const _args = Artist._getArgs();
+  const _result = _contract.get_artist(_args);
+  if (_result !== undefined) if (_result && _result.constructor && _result.constructor.name === "NearPromise") _result.onReturn();else env.value_return(Artist._serialize(_result, true));
 }
 
 export { create_artist, create_user_profile, donate_to_artist, get_all_artist, get_all_users, get_artist, get_artist_from_category, get_user };
