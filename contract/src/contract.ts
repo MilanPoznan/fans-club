@@ -108,7 +108,11 @@ class Artist { //
   }
 
 
-  @
+  @call({ payableFunction: true })
+  pay_to_owner(amount: BigNumber) {
+    const promiseResult = near.promiseResult(0);
+    const promiseObject = JSON.parse(promiseResult);
+  }
 
 
   @call({ payableFunction: true })
@@ -126,8 +130,8 @@ class Artist { //
     const donationAmount: bigint = near.attachedDeposit() as bigint;
 
     //Artist
-    const artistToDonate = this.all_artists.get('artisttest.testnet') as ArtistModel;
-
+    const artistToDonate = this.all_artists.get(artist_id) as ArtistModel;
+    near.log('artistToDonate', artistToDonate)
 
     let toTransfer = donationAmount - STORAGE_COST;
 
@@ -136,16 +140,29 @@ class Artist { //
     toTransfer = toTransfer - myMoney
 
     near.log('myMoney ', myMoney)
+    near.log('tyopeofmyMoney ', typeof myMoney)
     near.log('toTransfer', toTransfer)
 
 
-    // const promise = NearPromise.new(artistToDonate.account_id);
+    const promise = NearPromise.new(artist_id)
+      .transfer(donationAmount)
+      // .then(
+      //   NearPromise.new('testdev13.testnet').transfer(myMoney)
+      // )
+      .asReturn()
+
+
+    near.log('PROMISE', promise)
     // const promise = near.promiseBatchCreate(artistToDonate.account_id)
     // const promise = NearPromise.new(artistToDonate.account_id);
     // promise.transfer(donationAmount)
     // promise.onReturn();
-    const promise = near.promiseBatchCreate(artist_id)
-    near.promiseBatchActionTransfer(promise, donationAmount)
+
+    /**
+     * This works
+     */
+    // const promise = near.promiseBatchCreate(artist_id)
+    // near.promiseBatchActionTransfer(promise, toTransfer)
 
 
     const donationTransaction = createDonationTransaction(artist_id, donationAmount, true, '20-11-2022')
