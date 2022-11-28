@@ -151,12 +151,13 @@ test('donations', async (t) => {
   await rambo.call(contract, 'create_artist', { ...secondArtist })
 
   const allArtists = await contract.view('get_all_artist')
+
   console.log(allArtists)
 
   const dontaion = await user1.call(
     contract, 'donate_to_artist',
     { artist_id: rambo.accountId },
-    { attachedDeposit: NEAR.parse("1 N").toString() })
+    { attachedDeposit: NEAR.parse("3 N").toString() })
 
 
   console.log(dontaion)
