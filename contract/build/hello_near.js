@@ -659,16 +659,6 @@ function promiseBatchActionFunctionCallWeight(promiseIndex, methodName, args, am
   env.promise_batch_action_function_call_weight(promiseIndex, methodName, args, amount, gas, weight);
 }
 /**
- * Returns the result of the NEAR promise for the passed promise index.
- *
- * @param promiseIndex - The index of the promise to return the result for.
- */
-function promiseResult(promiseIndex) {
-  const status = env.promise_result(promiseIndex, 0);
-  assert(Number(status) === PromiseResult.Successful, `Promise result ${status == PromiseResult.Failed ? "Failed" : status == PromiseResult.NotReady ? "NotReady" : status}`);
-  return env.read_register(0);
-}
-/**
  * Executes the promise in the NEAR WASM virtual machine.
  *
  * @param promiseIndex - The index of the promise to execute.
@@ -1627,7 +1617,7 @@ class NearPromise {
 
 // 'use strict';
 
-BigInt("1000000000000000000000");
+const STORAGE_COST = BigInt("1000000000000000000000");
 class ArtistModel {
   //wallet id
 
@@ -1667,11 +1657,9 @@ function initUser(account_id, status, nickname) {
   };
 }
 
-var _dec, _dec2, _dec3, _dec4, _dec5, _dec6, _dec7, _dec8, _dec9, _dec10, _class, _class2;
+var _dec, _dec2, _dec3, _dec4, _dec5, _dec6, _dec7, _dec8, _dec9, _class, _class2;
 //Moram logiku za storage cost da odradim kada se registruju User & Artst
 let Artist = (_dec = NearBindgen({}), _dec2 = view(), _dec3 = view(), _dec4 = view(), _dec5 = view(), _dec6 = view(), _dec7 = call({}), _dec8 = call({}), _dec9 = call({
-  payableFunction: true
-}), _dec10 = call({
   payableFunction: true
 }), _dec(_class = (_class2 = class Artist {
   //
@@ -1754,10 +1742,6 @@ let Artist = (_dec = NearBindgen({}), _dec2 = view(), _dec3 = view(), _dec4 = vi
       log('This account already exist ');
     }
   }
-  pay_to_owner(amount) {
-    const promiseResult$1 = promiseResult(0);
-    JSON.parse(promiseResult$1);
-  }
   donate_to_artist({
     artist_id
   }) {
@@ -1769,17 +1753,18 @@ let Artist = (_dec = NearBindgen({}), _dec2 = view(), _dec3 = view(), _dec4 = vi
     // const currentUser = this.all_users.get(donor) as UserInterface
 
     // near.log('currentUser', currentUser)
-
-    //Attach deposit
     const donationAmount = attachedDeposit();
-    NearPromise.new(artist_id).transfer(donationAmount);
+    let toTransfer = donationAmount - STORAGE_COST;
+    let myMoney = toTransfer / BigInt(20);
+    toTransfer = toTransfer - myMoney;
+    log("Final test :) ");
+    log('My money', myMoney.toString());
+    log('toTransfer', toTransfer.toString());
+    //Attach deposit
+    return NearPromise.new(artist_id).transfer(toTransfer).then(NearPromise.new('testdev13.testnet').transfer(myMoney)).asReturn();
 
     //Artist
     // const artistToDonate = this.all_artists.get(artist_id) as ArtistModel;
-
-    // let toTransfer = donationAmount - STORAGE_COST;
-
-    // let myMoney = toTransfer / BigInt(20)
 
     /**
      * This works
@@ -1799,7 +1784,7 @@ let Artist = (_dec = NearBindgen({}), _dec2 = view(), _dec3 = view(), _dec4 = vi
 
     // return currentUser
   }
-}, (_applyDecoratedDescriptor(_class2.prototype, "get_artist", [_dec2], Object.getOwnPropertyDescriptor(_class2.prototype, "get_artist"), _class2.prototype), _applyDecoratedDescriptor(_class2.prototype, "get_all_artist", [_dec3], Object.getOwnPropertyDescriptor(_class2.prototype, "get_all_artist"), _class2.prototype), _applyDecoratedDescriptor(_class2.prototype, "get_artist_from_category", [_dec4], Object.getOwnPropertyDescriptor(_class2.prototype, "get_artist_from_category"), _class2.prototype), _applyDecoratedDescriptor(_class2.prototype, "get_all_users", [_dec5], Object.getOwnPropertyDescriptor(_class2.prototype, "get_all_users"), _class2.prototype), _applyDecoratedDescriptor(_class2.prototype, "get_user", [_dec6], Object.getOwnPropertyDescriptor(_class2.prototype, "get_user"), _class2.prototype), _applyDecoratedDescriptor(_class2.prototype, "create_user_profile", [_dec7], Object.getOwnPropertyDescriptor(_class2.prototype, "create_user_profile"), _class2.prototype), _applyDecoratedDescriptor(_class2.prototype, "create_artist", [_dec8], Object.getOwnPropertyDescriptor(_class2.prototype, "create_artist"), _class2.prototype), _applyDecoratedDescriptor(_class2.prototype, "pay_to_owner", [_dec9], Object.getOwnPropertyDescriptor(_class2.prototype, "pay_to_owner"), _class2.prototype), _applyDecoratedDescriptor(_class2.prototype, "donate_to_artist", [_dec10], Object.getOwnPropertyDescriptor(_class2.prototype, "donate_to_artist"), _class2.prototype)), _class2)) || _class);
+}, (_applyDecoratedDescriptor(_class2.prototype, "get_artist", [_dec2], Object.getOwnPropertyDescriptor(_class2.prototype, "get_artist"), _class2.prototype), _applyDecoratedDescriptor(_class2.prototype, "get_all_artist", [_dec3], Object.getOwnPropertyDescriptor(_class2.prototype, "get_all_artist"), _class2.prototype), _applyDecoratedDescriptor(_class2.prototype, "get_artist_from_category", [_dec4], Object.getOwnPropertyDescriptor(_class2.prototype, "get_artist_from_category"), _class2.prototype), _applyDecoratedDescriptor(_class2.prototype, "get_all_users", [_dec5], Object.getOwnPropertyDescriptor(_class2.prototype, "get_all_users"), _class2.prototype), _applyDecoratedDescriptor(_class2.prototype, "get_user", [_dec6], Object.getOwnPropertyDescriptor(_class2.prototype, "get_user"), _class2.prototype), _applyDecoratedDescriptor(_class2.prototype, "create_user_profile", [_dec7], Object.getOwnPropertyDescriptor(_class2.prototype, "create_user_profile"), _class2.prototype), _applyDecoratedDescriptor(_class2.prototype, "create_artist", [_dec8], Object.getOwnPropertyDescriptor(_class2.prototype, "create_artist"), _class2.prototype), _applyDecoratedDescriptor(_class2.prototype, "donate_to_artist", [_dec9], Object.getOwnPropertyDescriptor(_class2.prototype, "donate_to_artist"), _class2.prototype)), _class2)) || _class);
 function donate_to_artist() {
   const _state = Artist._getState();
   if (!_state && Artist._requireInit()) {
@@ -1811,20 +1796,6 @@ function donate_to_artist() {
   }
   const _args = Artist._getArgs();
   const _result = _contract.donate_to_artist(_args);
-  Artist._saveToStorage(_contract);
-  if (_result !== undefined) if (_result && _result.constructor && _result.constructor.name === "NearPromise") _result.onReturn();else env.value_return(Artist._serialize(_result, true));
-}
-function pay_to_owner() {
-  const _state = Artist._getState();
-  if (!_state && Artist._requireInit()) {
-    throw new Error("Contract must be initialized");
-  }
-  const _contract = Artist._create();
-  if (_state) {
-    Artist._reconstruct(_contract, _state);
-  }
-  const _args = Artist._getArgs();
-  const _result = _contract.pay_to_owner(_args);
   Artist._saveToStorage(_contract);
   if (_result !== undefined) if (_result && _result.constructor && _result.constructor.name === "NearPromise") _result.onReturn();else env.value_return(Artist._serialize(_result, true));
 }
@@ -1922,5 +1893,5 @@ function get_artist() {
   if (_result !== undefined) if (_result && _result.constructor && _result.constructor.name === "NearPromise") _result.onReturn();else env.value_return(Artist._serialize(_result, true));
 }
 
-export { create_artist, create_user_profile, donate_to_artist, get_all_artist, get_all_users, get_artist, get_artist_from_category, get_user, pay_to_owner };
+export { create_artist, create_user_profile, donate_to_artist, get_all_artist, get_all_users, get_artist, get_artist_from_category, get_user };
 //# sourceMappingURL=hello_near.js.map

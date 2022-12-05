@@ -106,15 +106,6 @@ class Artist { //
     }
 
   }
-
-
-  @call({ payableFunction: true })
-  pay_to_owner(amount: BigNumber) {
-    const promiseResult = near.promiseResult(0);
-    const promiseObject = JSON.parse(promiseResult);
-  }
-
-
   @call({ payableFunction: true })
   donate_to_artist({ artist_id }: { artist_id: string }) {
 
@@ -126,18 +117,29 @@ class Artist { //
     // const currentUser = this.all_users.get(donor) as UserInterface
 
     // near.log('currentUser', currentUser)
-
-
-    //Attach deposit
     const donationAmount: bigint = near.attachedDeposit() as bigint;
-    NearPromise.new(artist_id).transfer(donationAmount)
+
+    let toTransfer = donationAmount - STORAGE_COST;
+    let myMoney = toTransfer / BigInt(20)
+    toTransfer = toTransfer - myMoney
+
+
+    near.log("Final test :) ")
+    near.log('My money', myMoney.toString())
+    near.log('toTransfer', toTransfer.toString())
+    //Attach deposit
+    return NearPromise.new(artist_id)
+      .transfer(toTransfer)
+      .then(
+        NearPromise.new('testdev13.testnet')
+          .transfer(myMoney)
+      )
+      .asReturn()
 
     //Artist
     // const artistToDonate = this.all_artists.get(artist_id) as ArtistModel;
 
-    // let toTransfer = donationAmount - STORAGE_COST;
 
-    // let myMoney = toTransfer / BigInt(20)
 
 
 
