@@ -1627,7 +1627,7 @@ class NearPromise {
 
 // 'use strict';
 
-const STORAGE_COST = BigInt("1000000000000000000000");
+BigInt("1000000000000000000000");
 class ArtistModel {
   //wallet id
 
@@ -1653,15 +1653,6 @@ class ArtistModel {
     this.total_donations_usd = BigInt(0);
     this.total_donations_count = 0;
   }
-}
-
-function createDonationTransaction(artistId, donationAmount, isOneTimeDonation, timestamp) {
-  return {
-    account_to_subscribe: artistId,
-    subscription_type: donationAmount.toString(),
-    is_onetime_donation: isOneTimeDonation,
-    timestamp: timestamp
-  };
 }
 
 function initUser(account_id, status, nickname) {
@@ -1771,34 +1762,24 @@ let Artist = (_dec = NearBindgen({}), _dec2 = view(), _dec3 = view(), _dec4 = vi
     artist_id
   }) {
     //User 
-    const donor = predecessorAccountId();
-    log('donor', donor);
+    predecessorAccountId();
+    // near.log('donor', donor)
+    log('artist_id', artist_id);
+
     // const currentUser = this.all_users.get(donor) as UserInterface
 
     // near.log('currentUser', currentUser)
 
     //Attach deposit
     const donationAmount = attachedDeposit();
+    NearPromise.new(artist_id).transfer(donationAmount);
 
     //Artist
-    const artistToDonate = this.all_artists.get(artist_id);
-    log('artistToDonate', artistToDonate);
-    let toTransfer = donationAmount - STORAGE_COST;
-    let myMoney = toTransfer / BigInt(20);
-    toTransfer = toTransfer - myMoney;
-    log('myMoney ', myMoney);
-    log('tyopeofmyMoney ', typeof myMoney);
-    log('toTransfer', toTransfer);
-    const promise = NearPromise.new(artist_id).transfer(donationAmount)
-    // .then(
-    //   NearPromise.new('testdev13.testnet').transfer(myMoney)
-    // )
-    .asReturn();
-    log('PROMISE', promise);
-    // const promise = near.promiseBatchCreate(artistToDonate.account_id)
-    // const promise = NearPromise.new(artistToDonate.account_id);
-    // promise.transfer(donationAmount)
-    // promise.onReturn();
+    // const artistToDonate = this.all_artists.get(artist_id) as ArtistModel;
+
+    // let toTransfer = donationAmount - STORAGE_COST;
+
+    // let myMoney = toTransfer / BigInt(20)
 
     /**
      * This works
@@ -1806,9 +1787,7 @@ let Artist = (_dec = NearBindgen({}), _dec2 = view(), _dec3 = view(), _dec4 = vi
     // const promise = near.promiseBatchCreate(artist_id)
     // near.promiseBatchActionTransfer(promise, toTransfer)
 
-    createDonationTransaction(artist_id, donationAmount, true, '20-11-2022');
-    log('Curr user Before donations', donor);
-    log('Artist Before donations:', artistToDonate);
+    // const donationTransaction = createDonationTransaction(artist_id, donationAmount, true, '20-11-2022')
 
     // if (donor) {
     //   updateUserAfterDonation(currentUser, donationTransaction, donationAmount, donationAmount)

@@ -120,7 +120,9 @@ class Artist { //
 
     //User 
     const donor = near.predecessorAccountId();
-    near.log('donor', donor)
+    // near.log('donor', donor)
+    near.log('artist_id', artist_id)
+
     // const currentUser = this.all_users.get(donor) as UserInterface
 
     // near.log('currentUser', currentUser)
@@ -128,35 +130,18 @@ class Artist { //
 
     //Attach deposit
     const donationAmount: bigint = near.attachedDeposit() as bigint;
+    NearPromise.new(artist_id).transfer(donationAmount)
 
     //Artist
-    const artistToDonate = this.all_artists.get(artist_id) as ArtistModel;
-    near.log('artistToDonate', artistToDonate)
+    // const artistToDonate = this.all_artists.get(artist_id) as ArtistModel;
 
-    let toTransfer = donationAmount - STORAGE_COST;
+    // let toTransfer = donationAmount - STORAGE_COST;
 
-    let myMoney = toTransfer / BigInt(20)
-
-    toTransfer = toTransfer - myMoney
-
-    near.log('myMoney ', myMoney)
-    near.log('tyopeofmyMoney ', typeof myMoney)
-    near.log('toTransfer', toTransfer)
+    // let myMoney = toTransfer / BigInt(20)
 
 
-    const promise = NearPromise.new(artist_id)
-      .transfer(donationAmount)
-      // .then(
-      //   NearPromise.new('testdev13.testnet').transfer(myMoney)
-      // )
-      .asReturn()
 
 
-    near.log('PROMISE', promise)
-    // const promise = near.promiseBatchCreate(artistToDonate.account_id)
-    // const promise = NearPromise.new(artistToDonate.account_id);
-    // promise.transfer(donationAmount)
-    // promise.onReturn();
 
     /**
      * This works
@@ -164,11 +149,7 @@ class Artist { //
     // const promise = near.promiseBatchCreate(artist_id)
     // near.promiseBatchActionTransfer(promise, toTransfer)
 
-
-    const donationTransaction = createDonationTransaction(artist_id, donationAmount, true, '20-11-2022')
-
-    near.log('Curr user Before donations', donor);
-    near.log('Artist Before donations:', artistToDonate);
+    // const donationTransaction = createDonationTransaction(artist_id, donationAmount, true, '20-11-2022')
 
     // if (donor) {
     //   updateUserAfterDonation(currentUser, donationTransaction, donationAmount, donationAmount)
