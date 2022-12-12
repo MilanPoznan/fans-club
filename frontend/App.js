@@ -4,10 +4,11 @@ import { ThemeProvider } from 'styled-components'
 import { theme } from './components/styles/GlobalTheme'
 
 import './components/styles/global.css';
+import './components/styles/fonts.css'
 
 //Components 
 import { SignInPrompt, SignOutButton } from './ui-components';
-import NonSignedHomepage from './components/NonSignedHomepage'
+import NonSignedHomepage from './components/non-signed-page/NonSignedHomepage'
 import RegisterArtistForm from './components/RegisterArtistForm';
 import RegisterUserForm from './components/user/RegisterUserForm';
 import LendingPage from './components/LendingPage'
