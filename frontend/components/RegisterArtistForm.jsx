@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react'
 const subscription_options = [1, 3, 5, 10, 25, 50, 100, 250, 500]
 const allCategories = ['music', 'art', 'podcast', 'games', 'yoga', 'modeling', 'film']
 
-export default function RegisterArtistForm({ currentAccountId, artist }) {
+export default function RegisterArtistForm({ currentAccountId, contract }) {
 
 
   const [title, setTitle] = useState('')
@@ -57,8 +57,8 @@ export default function RegisterArtistForm({ currentAccountId, artist }) {
   async function submitToContract() {
 
     console.log(currentAccountId)
-    await artist.setArtist(title, about, categories, null, subscriptionOptions, oneTimeDonations, null)
-    const currentArtist = await artist.getArtist(currentAccountId)
+    await contract.setArtist(title, about, categories, null, subscriptionOptions, oneTimeDonations, null)
+    const currentArtist = await contract.getArtist(currentAccountId)
 
     console.log('currentArtist', currentArtist)
 

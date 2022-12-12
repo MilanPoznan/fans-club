@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
 import { SubscriptionOption, SingleArtistCategories } from './styles/SingleArtistTemplate.styled'
 
+import { utils } from 'near-api-js'
+
 export default function SingleArtistTemplate({ artistContract }) {
 
   let { id } = useParams();
@@ -13,6 +15,19 @@ export default function SingleArtistTemplate({ artistContract }) {
     const artistData = await artistContract.getArtist(id)
     console.log('artistData', artistData)
     setCurrentArtist(artistData)
+
+  }
+
+  async function handleDonateToArtist() {
+    if (activeDonation) {
+      const yocto = utils.format.parseNearAmount(activeDonation.toString())
+      const userAdterDonation = await artistContract.donateToArtist(currentArtist.account_id, yocto)
+      console.log('userAdterDonation', userAdterDonation)
+
+    } else {
+      console.log('Please select proper amount')
+    }
+
   }
 
   useEffect(() => {
@@ -20,6 +35,12 @@ export default function SingleArtistTemplate({ artistContract }) {
     getArtistData()
   }, [])
 
+
+  useEffect(() => {
+    console.log(activeDonation)
+    const yocto = activeDonation && utils.format.parseNearAmount(activeDonation.toString())
+    console.log('yocto', yocto)
+  }, [activeDonation])
   return (
     <div style={{ paddingTop: '50px' }}>
       {currentArtist && <div>
@@ -28,13 +49,14 @@ export default function SingleArtistTemplate({ artistContract }) {
         <SingleArtistCategories>
           {currentArtist.subscription_types.map((item, index) =>
             <SubscriptionOption
-              onClick={() => setActiveDonation(index)}
+              key={item}
+              onClick={() => setActiveDonation(item)}
               isActive={activeDonation === index}
             >
               {item}
             </SubscriptionOption>)}
         </SingleArtistCategories>
-        <button>Donate</button>
+        <button onClick={handleDonateToArtist}>Donate</button>
       </div>}
     </div>
 
