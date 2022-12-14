@@ -17,5 +17,8 @@ export const theme = {
     yellow: '#FFFF83',
     borderColor: '#2e2c2c',
     gold: '#c4a44c'
+  },
+  gradients: {
+    primary: 'linear-gradient(244.39deg, #B04AFD 0%, #6A6FF8 49.48%, #00BFE7 100%)'
   }
 }

@@ -3,6 +3,7 @@ import React from 'react';
 import ReactDOM from 'react-dom';
 import App from './App';
 import { BrowserRouter } from "react-router-dom";
+import { createRoot } from 'react-dom/client';
 
 // NEAR
 import { Artist } from './near-interface';
@@ -19,11 +20,12 @@ const artist = new Artist({ contractId: 'dev-1670227331527-43835792719861', wall
 // Setup on page load
 window.onload = async () => {
   const isSignedIn = await wallet.startUp()
-  console.log('isSignedIn', isSignedIn)
+
   ReactDOM.render(
 
     <BrowserRouter>
-      <App isSignedIn={isSignedIn} artist={artist} wallet={wallet} /></BrowserRouter>,
+      <App isSignedIn={isSignedIn} artist={artist} wallet={wallet} />
+    </BrowserRouter>,
     document.getElementById('root')
   );
 }

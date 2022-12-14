@@ -8,7 +8,7 @@ export const Heading1 = styled.h1`
   font-style: normal;
   font-weight: 400;
   font-size: 46px;
-  line-height: 54px;
+  line-height: 50px;
   color: var(--black);
   text-transform: uppercase;
 
@@ -117,6 +117,44 @@ export const Heading6 = styled.h6`
   text-transform: uppercase;
 `
 
+export const WhiteHeading1 = styled(Heading1)`
+  color: white;
+  font-family: 'Kumbh Sans', sans-serif;
+  font-weight: 700;
+  text-transform: unset;
+` 
+
+export const WhiteHeading2 = styled(Heading2)`
+  color: white;
+  font-family: 'Kumbh Sans', sans-serif;
+  font-weight: 700;
+  text-transform: unset;
+` 
+
+export const WhiteHeading3 = styled(Heading3)`
+  color: white;
+  font-family: 'Kumbh Sans', sans-serif;
+  font-weight: 700;
+  text-transform: unset;
+
+  @media ${device.tablet} {
+    font-size: 30px;
+    line-height: 48px;
+  }
+  @media ${device.tabletL} {
+    font-size: 34px;
+    line-height: 58px;
+  }
+  @media ${device.desktopS} {
+    font-size: 30px;
+    line-height: 48px;
+  }
+  @media ${device.desktopL} {
+    font-size: 30px;
+    line-height: 58px;
+  }
+` 
+
 export const BigPWrapper = styled.div`
   margin: 0;
   font-family: var(--regular);
@@ -154,6 +192,12 @@ export const SmallP = styled.p`
   line-height: 24px;
   color: ${theme.colors.primary};
 `
+
+export const OpacityText = styled(SmallP)`
+  opacity: 0.6;
+  color: white;
+`
+
 export const SmallLink = styled.a`
   width: fit-content;
   font-size: 14px;
@@ -165,8 +209,8 @@ export const SmallLink = styled.a`
 `
 
 export const ContentWrapper = styled.div`
-width: 100%;
-padding: 0px 30px 0px 30px;
+  width: 100%;
+  padding: 0px 30px 0px 30px;
   @media ${device.tablet} {
     padding: 0px 50px 0px 50px;
   }
@@ -182,9 +226,25 @@ padding: 0px 30px 0px 30px;
     max-width: 1024px;
   }
   @media ${device.desktopL} {
-    max-width: 1180px;
+    max-width: 1280px;
   }
 `
+
+export const MobileDesktopImage = styled.div`
+  .hero-img-desktop {
+    display: none;
+  }
+
+  @media ${device.desktopS} {
+    .hero-img-mobile {
+      display: none;
+    }
+    .hero-img-desktop {
+      display: block;
+    }
+  }
+`
+
 
 export const UppercaseLabel = styled.p`
   font-family: var(--regular);
